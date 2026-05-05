@@ -1,0 +1,126 @@
+{
+  "nodes": [
+    {
+      "id": "./src/models.rs",
+      "label": "models.rs",
+      "group": "src",
+      "val": 20
+    },
+    {
+      "id": "./src/models.rs::struct::Node",
+      "label": "Node",
+      "group": "structs",
+      "val": 12,
+      "code": "pub struct Node {\n    pub id: String,\n    pub label: String,\n    pub group: String,\n    pub val: usize,\n    #[serde(skip_serializing_if = \"Option::is_none\")]\n    pub code: Option<String>,\n}"
+    },
+    {
+      "id": "./src/models.rs::struct::Link",
+      "label": "Link",
+      "group": "structs",
+      "val": 12,
+      "code": "pub struct Link {\n    pub source: String,\n    pub target: String,\n    #[serde(rename = \"type\")]\n    pub link_type: String,\n}"
+    },
+    {
+      "id": "./src/models.rs::struct::GraphData",
+      "label": "GraphData",
+      "group": "structs",
+      "val": 12,
+      "code": "pub struct GraphData {\n    pub nodes: Vec<Node>,\n    pub links: Vec<Link>,\n}"
+    },
+    {
+      "id": "./src/scanner.rs",
+      "label": "scanner.rs",
+      "group": "src",
+      "val": 20
+    },
+    {
+      "id": "./src/scanner.rs::fn::find_rust_files",
+      "label": "find_rust_files()",
+      "group": "src",
+      "val": 8,
+      "code": "pub fn find_rust_files(target_dir: &str) -> Vec<PathBuf> {\n    let mut files = Vec::new();\n\n    for entry in WalkDir::new(target_dir)\n        .into_iter()\n        .filter_entry(|e| {\n            let name = e.file_name().to_string_lossy();\n            let is_hidden = name.starts_with(\".\") && name != \".\" && name != \"..\";\n            name != \"target\" && !is_hidden\n        })\n        .filter_map(|e| e.ok())\n        .filter(|e| e.file_type().is_file())\n    {\n        let path = entry.path();\n        if let Some(ext) = path.extension() {\n            if ext == \"rs\" {\n                files.push(path.to_path_buf());\n            }\n        }\n    }\n\n    files\n}"
+    },
+    {
+      "id": "./src/main.rs",
+      "label": "main.rs",
+      "group": "src",
+      "val": 20
+    },
+    {
+      "id": "./src/main.rs::use::use models::GraphData;",
+      "label": "models::GraphData",
+      "group": "imports",
+      "val": 5,
+      "code": "use models::GraphData;"
+    },
+    {
+      "id": "./src/main.rs::fn::main",
+      "label": "main()",
+      "group": "src",
+      "val": 8,
+      "code": "fn main() {\n    let args: Vec<String> = env::args().collect();\n    let target_dir = if args.len() > 1 { &args[1] } else { \".\" };\n\n    println!(\"Scanning directory: {}\", target_dir);\n\n    let mut nodes = Vec::new();\n    let mut links = Vec::new();\n\n    let files = scanner::find_rust_files(target_dir);\n\n    for file in files {\n        parser::parse_rust_file(&file, &mut nodes, &mut links);\n    }\n\n    let graph = GraphData { nodes, links };\n\n    if let Ok(json) = serde_json::to_string_pretty(&graph) {\n        let output_path = \"../ui/public/data.json\";\n        match fs::write(output_path, json) {\n            Ok(_) => println!(\"Successfully saved graph data to {}\", output_path),\n            Err(e) => eprintln!(\"Error saving graph data: {}\", e),\n        }\n    }\n}"
+    },
+    {
+      "id": "./src/parser.rs",
+      "label": "parser.rs",
+      "group": "src",
+      "val": 20
+    },
+    {
+      "id": "./src/parser.rs::use::use crate::models::{Link, Node};",
+      "label": "crate::models::{Link, Node}",
+      "group": "imports",
+      "val": 5,
+      "code": "use crate::models::{Link, Node};"
+    },
+    {
+      "id": "./src/parser.rs::fn::parse_rust_file",
+      "label": "parse_rust_file()",
+      "group": "src",
+      "val": 8,
+      "code": "pub fn parse_rust_file(path: &Path, nodes: &mut Vec<Node>, links: &mut Vec<Link>) {\n    let full_path = path.to_string_lossy().into_owned();\n    let file_name = path.file_name().unwrap().to_string_lossy().into_owned();\n    let group = path.parent()\n        .and_then(|p| p.file_name())\n        .map(|n| n.to_string_lossy().into_owned())\n        .unwrap_or_else(|| \"root\".to_string());\n\n    // สร้างโหนดสำหรับไฟล์\n    nodes.push(Node {\n        id: full_path.clone(),\n        label: file_name,\n        group: group.clone(),\n        val: 20,\n        code: None,\n    });\n\n    if let Ok(source_code) = fs::read_to_string(path) {\n        let mut parser = Parser::new();\n        let language = tree_sitter_rust::LANGUAGE.into();\n        parser.set_language(&language).expect(\"Error loading Rust grammar\");\n\n        let query_code = \"\n            (function_item) @func\n            (struct_item) @struct\n            (impl_item type: (type_identifier) @impl.name)\n            (use_declaration) @use\n        \";\n        let query = Query::new(&language, query_code).expect(\"Error creating query\");\n\n        let tree = parser.parse(&source_code, None).unwrap();\n        let mut cursor = QueryCursor::new();\n        let mut captures = cursor.captures(&query, tree.root_node(), source_code.as_bytes());\n\n        while let Some((m, _)) = captures.next() {\n            for capture in m.captures {\n                let node = capture.node;\n                let full_content = &source_code[node.start_byte()..node.end_byte()];\n                let capture_name = query.capture_names()[capture.index as usize];\n\n                match capture_name {\n                    \"func\" => {\n                        if let Some(name_node) = node.child_by_field_name(\"name\") {\n                            let name = &source_code[name_node.start_byte()..name_node.end_byte()];\n                            let id = format!(\"{}::fn::{}\", full_path, name);\n                            nodes.push(Node {\n                                id: id.clone(),\n                                label: format!(\"{}()\", name),\n                                group: group.clone(),\n                                val: 8,\n                                code: Some(full_content.to_string()),\n                            });\n                            links.push(Link {\n                                source: full_path.clone(),\n                                target: id,\n                                link_type: \"contains\".to_string(),\n                            });\n                        }\n                    },\n                    \"struct\" => {\n                        if let Some(name_node) = node.child_by_field_name(\"name\") {\n                            let name = &source_code[name_node.start_byte()..name_node.end_byte()];\n                            let id = format!(\"{}::struct::{}\", full_path, name);\n                            nodes.push(Node {\n                                id: id.clone(),\n                                label: name.to_string(),\n                                group: \"structs\".to_string(),\n                                val: 12,\n                                code: Some(full_content.to_string()),\n                            });\n                            links.push(Link {\n                                source: full_path.clone(),\n                                target: id,\n                                link_type: \"contains\".to_string(),\n                            });\n                        }\n                    },\n                    \"impl.name\" => {\n                        let struct_id = format!(\"{}::struct::{}\", full_path, full_content);\n                        links.push(Link {\n                            source: full_path.clone(),\n                            target: struct_id,\n                            link_type: \"implements\".to_string(),\n                        });\n                    },\n                    \"use\" => {\n                        if !full_content.contains(\"std::\") && \n                           !full_content.contains(\"serde\") && \n                           !full_content.contains(\"tree_sitter\") && \n                           !full_content.contains(\"walkdir\") {\n                            let id = format!(\"{}::use::{}\", full_path, full_content);\n                            nodes.push(Node {\n                                id: id.clone(),\n                                label: full_content.replace(\"use \", \"\").replace(\";\", \"\"),\n                                group: \"imports\".to_string(),\n                                val: 5,\n                                code: Some(full_content.to_string()),\n                            });\n                            links.push(Link {\n                                source: full_path.clone(),\n                                target: id,\n                                link_type: \"imports\".to_string(),\n                            });\n                        }\n                    },\n                    _ => {}\n                }\n            }\n        }\n    }\n}"
+    }
+  ],
+  "links": [
+    {
+      "source": "./src/models.rs",
+      "target": "./src/models.rs::struct::Node",
+      "type": "contains"
+    },
+    {
+      "source": "./src/models.rs",
+      "target": "./src/models.rs::struct::Link",
+      "type": "contains"
+    },
+    {
+      "source": "./src/models.rs",
+      "target": "./src/models.rs::struct::GraphData",
+      "type": "contains"
+    },
+    {
+      "source": "./src/scanner.rs",
+      "target": "./src/scanner.rs::fn::find_rust_files",
+      "type": "contains"
+    },
+    {
+      "source": "./src/main.rs",
+      "target": "./src/main.rs::use::use models::GraphData;",
+      "type": "imports"
+    },
+    {
+      "source": "./src/main.rs",
+      "target": "./src/main.rs::fn::main",
+      "type": "contains"
+    },
+    {
+      "source": "./src/parser.rs",
+      "target": "./src/parser.rs::use::use crate::models::{Link, Node};",
+      "type": "imports"
+    },
+    {
+      "source": "./src/parser.rs",
+      "target": "./src/parser.rs::fn::parse_rust_file",
+      "type": "contains"
+    }
+  ]
+}
