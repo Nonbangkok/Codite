@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Folder, FileText, ChevronRight, ChevronDown, Filter, X } from 'lucide-react';
-import { FileTreeItem } from '../utils/treeUtils';
+import type { FileTreeItem } from '../utils/treeUtils';
 
 interface FileExplorerProps {
   tree: FileTreeItem[];

@@ -11,7 +11,7 @@ function App() {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [activeFolderPath, setActiveFolderPath] = useState<string | null>(null);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
-  const [panelWidth, setPanelWidth] = useState(450);
+  const [panelWidth, setPanelWidth] = useState(900);
   const [isResizing, setIsResizing] = useState(false);
   const prevDataStrRef = useRef<string>('');
 
@@ -21,7 +21,7 @@ function App() {
       try {
         const response = await fetch('/data.json');
         const data = await response.json();
-        
+
         const filteredNodes = data.nodes.filter((n: NodeData) => n.group !== 'imports');
         const validNodeIds = new Set(filteredNodes.map((n: NodeData) => n.id));
         const filteredLinks = data.links.filter((l: any) => {
@@ -62,14 +62,14 @@ function App() {
   // กรองข้อมูลตามโฟลเดอร์ที่เลือก (Folder Filtering)
   const filteredData = useMemo(() => {
     if (!activeFolderPath) return graphData;
-    
+
     const nodes = graphData.nodes.filter(n => n.id.startsWith(activeFolderPath));
     const nodeIds = new Set(nodes.map(n => n.id));
-    
+
     const links = graphData.links.filter(l => {
-      const sourceId = typeof l.source === 'string' ? l.source : l.source.id;
-      const targetId = typeof l.target === 'string' ? l.target : l.target.id;
-      return nodeIds.has(sourceId) && nodeIds.has(targetId);
+      const sourceId = typeof l.source === 'object' ? l.source.id : l.source;
+      const targetId = typeof l.target === 'object' ? l.target.id : l.target;
+      return sourceId && targetId && nodeIds.has(sourceId) && nodeIds.has(targetId);
     });
 
     return { nodes, links };
@@ -89,7 +89,7 @@ function App() {
 
   const resize = useCallback((e: MouseEvent) => {
     if (isResizing) {
-      const newWidth = window.innerWidth - e.clientX;
+      const newWidth = document.body.clientWidth - e.clientX;
       if (newWidth > 300 && newWidth < 900) {
         setPanelWidth(newWidth);
       }
@@ -111,7 +111,7 @@ function App() {
 
   return (
     <div style={{ width: '100vw', height: '100vh', background: '#161618', overflow: 'hidden', display: 'flex' }}>
-      <CommandPalette 
+      <CommandPalette
         isOpen={isCommandPaletteOpen}
         onClose={() => setIsCommandPaletteOpen(false)}
         nodes={graphData.nodes}
@@ -123,9 +123,9 @@ function App() {
           setSelectedNodeId(node.id);
         }}
       />
-      
-      <FileExplorer 
-        tree={fileTree} 
+
+      <FileExplorer
+        tree={fileTree}
         activeFolderPath={activeFolderPath}
         onFolderSelect={setActiveFolderPath}
         onFileSelect={setSelectedNodeId}
@@ -134,12 +134,12 @@ function App() {
       {/* Main Graph Area */}
       <div style={{ flex: 1, position: 'relative' }}>
         {/* Header Info */}
-        <div style={{ 
-          position: 'absolute', 
-          top: 20, 
-          left: 20, 
-          zIndex: 10, 
-          color: '#a2a7b6', 
+        <div style={{
+          position: 'absolute',
+          top: 20,
+          left: 20,
+          zIndex: 10,
+          color: '#a2a7b6',
           fontFamily: 'Inter, sans-serif',
           pointerEvents: 'none'
         }}>
@@ -153,17 +153,17 @@ function App() {
           )}
         </div>
 
-        <GraphView 
-          graphData={filteredData} 
-          selectedNode={selectedNode} 
-          onNodeSelect={(node) => setSelectedNodeId(node ? node.id : null)} 
+        <GraphView
+          graphData={filteredData}
+          selectedNode={selectedNode}
+          onNodeSelect={(node) => setSelectedNodeId(node ? node.id : null)}
           customWidthOffset={selectedNode ? panelWidth : 0}
         />
       </div>
 
       {/* Resizer Handle */}
       {selectedNode && (
-        <div 
+        <div
           onMouseDown={startResizing}
           style={{
             width: '4px',
@@ -184,12 +184,15 @@ function App() {
         opacity: selectedNode ? 1 : 0,
         transition: isResizing ? 'none' : 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
         overflow: 'hidden',
-        flexShrink: 0
+        flexShrink: 0,
+        zIndex: 100,
+        boxShadow: '-10px 0 30px rgba(0,0,0,0.5)',
+        display: 'flex'
       }}>
         {selectedNode && (
-          <CodePreviewPanel 
-            selectedNode={selectedNode} 
-            onClose={() => setSelectedNodeId(null)} 
+          <CodePreviewPanel
+            selectedNode={selectedNode}
+            onClose={() => setSelectedNodeId(null)}
             width={panelWidth}
           />
         )}

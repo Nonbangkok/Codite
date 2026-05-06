@@ -4,6 +4,10 @@ export interface NodeData {
   group: string;
   val: number;
   code?: string;
+  x?: number;
+  y?: number;
+  vx?: number;
+  vy?: number;
 }
 
 export interface LinkData {

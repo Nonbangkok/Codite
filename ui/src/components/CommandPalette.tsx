@@ -10,7 +10,7 @@ interface CommandPaletteProps {
   onSelect: (node: NodeData) => void;
 }
 
-const TYPE_ICONS: Record<string, any> = {
+const TYPE_ICONS: Record<string, React.ElementType> = {
   functions: FunctionSquare,
   structs: Box,
   enums: Layers,
@@ -40,7 +40,8 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose,
     if (isOpen) {
       setQuery('');
       setSelectedIndex(0);
-      setTimeout(() => inputRef.current?.focus(), 10);
+      const timer = setTimeout(() => inputRef.current?.focus(), 10);
+      return () => clearTimeout(timer);
     }
   }, [isOpen]);
 

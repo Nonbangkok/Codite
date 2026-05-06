@@ -51,7 +51,7 @@ export const GraphView: React.FC<GraphViewProps> = ({ graphData, selectedNode, o
 
   // เอฟเฟกต์การซูมเมื่อเลือกโหนด (Zoom to Node)
   useEffect(() => {
-    if (selectedNode && fgRef.current) {
+    if (selectedNode && fgRef.current && selectedNode.x !== undefined && selectedNode.y !== undefined) {
       // พุ่งไปยังตำแหน่งโหนดและซูมเข้าไปใกล้ๆ
       fgRef.current.zoom(2.5, 800); // ซูม 2.5x ในเวลา 800ms
       fgRef.current.centerAt(selectedNode.x, selectedNode.y, 800);
@@ -78,27 +78,27 @@ export const GraphView: React.FC<GraphViewProps> = ({ graphData, selectedNode, o
     };
   }, [hoverNode]);
 
-  const handleNodeHover = useCallback((node: any) => {
-    highlightNodes.clear();
-    highlightLinks.clear();
+  const handleNodeHover = useCallback((node: NodeData | null) => {
+    const newHighlightNodes = new Set<string>();
+    const newHighlightLinks = new Set<LinkData>();
 
     if (node) {
-      highlightNodes.add(node.id);
+      newHighlightNodes.add(node.id);
       graphData.links.forEach((link: any) => {
-        const sourceId = typeof link.source === 'string' ? link.source : link.source.id;
-        const targetId = typeof link.target === 'string' ? link.target : link.target.id;
+        const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
+        const targetId = typeof link.target === 'object' ? link.target.id : link.target;
         if (sourceId === node.id || targetId === node.id) {
-          highlightLinks.add(link);
-          highlightNodes.add(sourceId);
-          highlightNodes.add(targetId);
+          newHighlightLinks.add(link);
+          newHighlightNodes.add(sourceId);
+          newHighlightNodes.add(targetId);
         }
       });
     }
 
     setHoverNode(node || null);
-    setHighlightNodes(new Set(highlightNodes));
-    setHighlightLinks(new Set(highlightLinks));
-  }, [graphData]);
+    setHighlightNodes(newHighlightNodes);
+    setHighlightLinks(newHighlightLinks);
+  }, [graphData.links]);
 
   const paintNode = useCallback((node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
     const label = node.label;
@@ -111,7 +111,7 @@ export const GraphView: React.FC<GraphViewProps> = ({ graphData, selectedNode, o
     const isNeighbor = hoverNode && highlightNodes.has(node.id) && !isHovered;
     
     // กำหนดสีตามประเภทของโหนด
-    let baseColor = TYPE_COLORS[node.group] || TYPE_COLORS.default;
+    const baseColor = TYPE_COLORS[node.group] || TYPE_COLORS.default;
     
     // ถ้าเป็น Focus (Selected/Hovered) ให้ใช้สีเหลือง Highlight
     let color = baseColor;
