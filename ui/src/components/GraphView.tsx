@@ -49,6 +49,15 @@ export const GraphView: React.FC<GraphViewProps> = ({ graphData, selectedNode, o
   const [fadeOpacity, setFadeOpacity] = useState(1.0);
   const fadeRequestId = useRef<number>(null);
 
+  // เอฟเฟกต์การซูมเมื่อเลือกโหนด (Zoom to Node)
+  useEffect(() => {
+    if (selectedNode && fgRef.current) {
+      // พุ่งไปยังตำแหน่งโหนดและซูมเข้าไปใกล้ๆ
+      fgRef.current.zoom(2.5, 800); // ซูม 2.5x ในเวลา 800ms
+      fgRef.current.centerAt(selectedNode.x, selectedNode.y, 800);
+    }
+  }, [selectedNode]);
+
   useEffect(() => {
     const target = hoverNode ? 0.15 : 1.0;
     const step = 0.05; // ความเร็วในการจาง
