@@ -3,6 +3,8 @@ import type { GraphData, NodeData } from './types';
 import { GraphView } from './components/GraphView';
 import { CodePreviewPanel } from './components/CodePreviewPanel';
 import { CommandPalette } from './components/CommandPalette';
+import { FileExplorer } from './components/FileExplorer';
+import { buildFileTree } from './utils/treeUtils';
 
 function App() {
   const [graphData, setGraphData] = useState<GraphData>({ nodes: [], links: [] });
@@ -73,6 +75,8 @@ function App() {
     return { nodes, links };
   }, [graphData, activeFolderPath]);
 
+  const fileTree = useMemo(() => buildFileTree(graphData.nodes), [graphData.nodes]);
+
   // ระบบขยายขนาดแถบข้าง (Resizing Logic)
   const startResizing = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -111,25 +115,44 @@ function App() {
         isOpen={isCommandPaletteOpen}
         onClose={() => setIsCommandPaletteOpen(false)}
         nodes={graphData.nodes}
-        onSelect={(node) => setSelectedNodeId(node.id)}
+        onSelect={(node) => {
+          // ถ้าโหนดอยู่ข้างนอกโฟลเดอร์ที่กรองอยู่ ให้ล้างตัวกรองก่อน
+          if (activeFolderPath && !node.id.startsWith(activeFolderPath)) {
+            setActiveFolderPath(null);
+          }
+          setSelectedNodeId(node.id);
+        }}
       />
       
-      {/* Header Info */}
-      <div style={{ 
-        position: 'absolute', 
-        top: 20, 
-        left: 20, 
-        zIndex: 10, 
-        color: '#a2a7b6', 
-        fontFamily: 'Inter, sans-serif',
-        pointerEvents: 'none'
-      }}>
-        <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 600 }}>AtloGraph</h1>
-        <p style={{ margin: '4px 0', opacity: 0.6, fontSize: '0.9rem' }}>Visualizing Codebase like Obsidian</p>
-      </div>
+      <FileExplorer 
+        tree={fileTree} 
+        activeFolderPath={activeFolderPath}
+        onFolderSelect={setActiveFolderPath}
+        onFileSelect={setSelectedNodeId}
+      />
 
       {/* Main Graph Area */}
       <div style={{ flex: 1, position: 'relative' }}>
+        {/* Header Info */}
+        <div style={{ 
+          position: 'absolute', 
+          top: 20, 
+          left: 20, 
+          zIndex: 10, 
+          color: '#a2a7b6', 
+          fontFamily: 'Inter, sans-serif',
+          pointerEvents: 'none'
+        }}>
+          <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 600 }}>AtloGraph</h1>
+          {activeFolderPath ? (
+            <p style={{ margin: '4px 0', color: '#f4d676', fontSize: '0.9rem', display: 'flex', alignItems: 'center' }}>
+              Viewing Scope: {activeFolderPath}
+            </p>
+          ) : (
+            <p style={{ margin: '4px 0', opacity: 0.6, fontSize: '0.9rem' }}>Visualizing Codebase like Obsidian</p>
+          )}
+        </div>
+
         <GraphView 
           graphData={filteredData} 
           selectedNode={selectedNode} 

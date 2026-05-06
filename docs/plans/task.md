@@ -6,10 +6,10 @@
 - [ ] Task 2: ระบบ Command Palette (Fuzzy Search)
     - [x] Step 1: ติดตั้ง Fuse.js และ Lucide React
     - [x] Step 2: สร้างส่วนประกอบ Command Palette.tsx
-    - [ ] Step 3: บันทึกและ Commit
+    - [x] Step 3: บันทึกและ Commit
 - [ ] Task 3: ระบบ File Explorer (Left Sidebar)
-    - [ ] Step 1: สร้างฟังก์ชันแปลง Flat Data เป็น Tree Structure
-    - [ ] Step 2: สร้าง UI Tree View ใน FileExplorer.tsx
+    - [x] Step 1: สร้างฟังก์ชันแปลง Flat Data เป็น Tree Structure
+    - [x] Step 2: สร้าง UI Tree View ใน FileExplorer.tsx
     - [ ] Step 3: บันทึกและ Commit
 - [ ] Task 4: ระบบ Zoom & Focus (Navigation Sync)
     - [ ] Step 1: เพิ่มความสามารถ Zoom to Node ใน GraphView.tsx
