@@ -148,7 +148,7 @@ function App() {
               Viewing Scope: {activeFolderPath}
             </p>
           ) : (
-            <p style={{ margin: '4px 0', opacity: 0.6, fontSize: '0.9rem' }}>Visualizing Codebase like Obsidian</p>
+            <p style={{ margin: '4px 0', opacity: 0.6, fontSize: '0.9rem' }}>Visualizing Your Codebase</p>
           )}
         </div>
 
