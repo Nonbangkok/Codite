@@ -11,7 +11,7 @@ function App() {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [activeFolderPath, setActiveFolderPath] = useState<string | null>(null);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
-  const [panelWidth, setPanelWidth] = useState(600);
+  const [panelWidth, setPanelWidth] = useState(500);
   const [isResizing, setIsResizing] = useState(false);
   const prevDataStrRef = useRef<string>('');
 
