@@ -1,11 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import type { GraphData, NodeData } from './types';
 import { GraphView } from './components/GraphView';
 import { CodePreviewPanel } from './components/CodePreviewPanel';
 
 function App() {
   const [graphData, setGraphData] = useState<GraphData>({ nodes: [], links: [] });
-  const [selectedNode, setSelectedNode] = useState<NodeData | null>(null);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [panelWidth, setPanelWidth] = useState(450);
+  const [isResizing, setIsResizing] = useState(false);
+  const prevDataStrRef = useRef<string>('');
 
   // ดึงข้อมูลจากไฟล์ที่ Backend สร้างขึ้น
   useEffect(() => {
@@ -13,7 +16,22 @@ function App() {
       try {
         const response = await fetch('/data.json');
         const data = await response.json();
-        setGraphData(data);
+        
+        const filteredNodes = data.nodes.filter((n: NodeData) => n.group !== 'imports');
+        const validNodeIds = new Set(filteredNodes.map((n: NodeData) => n.id));
+        const filteredLinks = data.links.filter((l: any) => {
+          const sourceId = typeof l.source === 'string' ? l.source : l.source.id;
+          const targetId = typeof l.target === 'string' ? l.target : l.target.id;
+          return validNodeIds.has(sourceId) && validNodeIds.has(targetId);
+        });
+
+        const finalData = { nodes: filteredNodes, links: filteredLinks };
+        const dataStr = JSON.stringify(finalData);
+
+        if (dataStr !== prevDataStrRef.current) {
+          setGraphData(finalData);
+          prevDataStrRef.current = dataStr;
+        }
       } catch (error) {
         console.error('Error loading graph data:', error);
       }
@@ -24,15 +42,47 @@ function App() {
     return () => clearInterval(interval);
   }, []);
 
+  // ระบบขยายขนาดแถบข้าง (Resizing Logic)
+  const startResizing = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+  }, []);
+
+  const stopResizing = useCallback(() => {
+    setIsResizing(false);
+  }, []);
+
+  const resize = useCallback((e: MouseEvent) => {
+    if (isResizing) {
+      const newWidth = window.innerWidth - e.clientX;
+      if (newWidth > 300 && newWidth < 900) {
+        setPanelWidth(newWidth);
+      }
+    }
+  }, [isResizing]);
+
+  useEffect(() => {
+    window.addEventListener('mousemove', resize);
+    window.addEventListener('mouseup', stopResizing);
+    return () => {
+      window.removeEventListener('mousemove', resize);
+      window.removeEventListener('mouseup', stopResizing);
+    };
+  }, [resize, stopResizing]);
+
+  const selectedNode = useMemo(() => {
+    return graphData.nodes.find(n => n.id === selectedNodeId) || null;
+  }, [graphData.nodes, selectedNodeId]);
+
   return (
-    <div style={{ width: '100vw', height: '100vh', background: '#0f172a', overflow: 'hidden', display: 'flex' }}>
+    <div style={{ width: '100vw', height: '100vh', background: '#161618', overflow: 'hidden', display: 'flex' }}>
       {/* Header Info */}
       <div style={{ 
         position: 'absolute', 
         top: 20, 
         left: 20, 
         zIndex: 10, 
-        color: 'white', 
+        color: '#a2a7b6', 
         fontFamily: 'Inter, sans-serif',
         pointerEvents: 'none'
       }}>
@@ -45,21 +95,49 @@ function App() {
         <GraphView 
           graphData={graphData} 
           selectedNode={selectedNode} 
-          onNodeSelect={setSelectedNode} 
+          onNodeSelect={(node) => setSelectedNodeId(node ? node.id : null)} 
+          customWidthOffset={selectedNode ? panelWidth : 0}
         />
       </div>
 
-      {/* Code Preview Panel */}
+      {/* Resizer Handle */}
       {selectedNode && (
-        <CodePreviewPanel 
-          selectedNode={selectedNode} 
-          onClose={() => setSelectedNode(null)} 
+        <div 
+          onMouseDown={startResizing}
+          style={{
+            width: '4px',
+            cursor: 'col-resize',
+            background: isResizing ? '#f4d676' : 'transparent',
+            zIndex: 150,
+            transition: 'background 0.2s',
+            borderLeft: '1px solid rgba(255,255,255,0.05)'
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(244, 214, 118, 0.3)'}
+          onMouseLeave={(e) => e.currentTarget.style.background = isResizing ? '#f4d676' : 'transparent'}
         />
       )}
 
+      {/* Code Preview Panel */}
+      <div style={{
+        width: selectedNode ? `${panelWidth}px` : '0px',
+        opacity: selectedNode ? 1 : 0,
+        transition: isResizing ? 'none' : 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+        overflow: 'hidden',
+        flexShrink: 0
+      }}>
+        {selectedNode && (
+          <CodePreviewPanel 
+            selectedNode={selectedNode} 
+            onClose={() => setSelectedNodeId(null)} 
+            width={panelWidth}
+          />
+        )}
+      </div>
+
       <style>{`
-        body { margin: 0; padding: 0; background: #0f172a; }
+        body { margin: 0; padding: 0; background: #161618; font-family: 'Inter', sans-serif; }
         canvas { cursor: crosshair; }
+        * { box-sizing: border-box; }
       `}</style>
     </div>
   );

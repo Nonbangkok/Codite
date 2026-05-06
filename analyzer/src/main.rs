@@ -8,7 +8,8 @@ use models::GraphData;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
-    let target_dir = if args.len() > 1 { &args[1] } else { "." };
+    let default_dir = env!("DEFAULT_SCAN_DIR");
+    let target_dir = if args.len() > 1 { &args[1] } else { default_dir };
 
     println!("Scanning directory: {}", target_dir);
 

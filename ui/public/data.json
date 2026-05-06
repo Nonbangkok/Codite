@@ -1,125 +1,1857 @@
 {
   "nodes": [
     {
-      "id": "./src/models.rs",
-      "label": "models.rs",
-      "group": "src",
-      "val": 20
+      "id": "../Panos/src/ui/reporter.rs",
+      "label": "reporter.rs",
+      "group": "ui",
+      "val": 20,
+      "code": "//! Progress reporter trait\n\nuse indicatif::{ProgressBar, ProgressStyle};\nuse std::sync::Mutex;\n\npub trait ProgressReporter: Send + Sync {\n    fn start(&self, total: Option<u64>, message: String);\n\n    fn update(&self, delta: u64, message: String);\n\n    fn finish(&self, message: String);\n}\n\npub struct NoopReporter;\n\nimpl ProgressReporter for NoopReporter {\n    fn start(&self, _total: Option<u64>, _message: String) {}\n    fn update(&self, _delta: u64, _message: String) {}\n    fn finish(&self, _message: String) {}\n}\n\npub struct IndicatifReporter {\n    pb: Mutex<Option<ProgressBar>>,\n}\n\nimpl IndicatifReporter {\n    pub fn new() -> Self {\n        Self {\n            pb: Mutex::new(None),\n        }\n    }\n}\n\nimpl ProgressReporter for IndicatifReporter {\n    fn start(&self, total: Option<u64>, message: String) {\n        let pb = match total {\n            Some(t) => {\n                let p = ProgressBar::new(t);\n                p.set_style(\n                    ProgressStyle::default_bar()\n                        .template(\"{spinner:.green} {msg} [{bar:40.cyan/blue}] {pos}/{len} ({eta})\")\n                        .unwrap(),\n                );\n                p\n            }\n            None => {\n                let p = ProgressBar::new_spinner();\n                p.set_style(\n                    ProgressStyle::default_spinner()\n                        .template(\"{spinner:.green} {msg} [{elapsed_precise}]\")\n                        .unwrap(),\n                );\n                p\n            }\n        };\n        pb.set_message(message);\n        let mut guard = self.pb.lock().unwrap();\n        *guard = Some(pb);\n    }\n    fn update(&self, delta: u64, message: String) {\n        let guard = self.pb.lock().unwrap();\n        if let Some(pb) = guard.as_ref() {\n            if delta > 0 {\n                pb.inc(delta);\n            }\n            if !message.is_empty() {\n                pb.set_message(message);\n            } else {\n                pb.tick();\n            }\n        }\n    }\n    fn finish(&self, message: String) {\n        let guard = self.pb.lock().unwrap();\n        if let Some(pb) = guard.as_ref() {\n            pb.finish_with_message(message);\n        }\n    }\n}\n"
     },
     {
-      "id": "./src/models.rs::struct::Node",
-      "label": "Node",
+      "id": "../Panos/src/ui/reporter.rs::use::use indicatif::{ProgressBar, ProgressStyle};",
+      "label": "indicatif::{ProgressBar, ProgressStyle}",
+      "group": "imports",
+      "val": 5,
+      "code": "use indicatif::{ProgressBar, ProgressStyle};"
+    },
+    {
+      "id": "../Panos/src/ui/reporter.rs::trait::ProgressReporter::97",
+      "label": "ProgressReporter",
+      "group": "traits",
+      "val": 14,
+      "code": "pub trait ProgressReporter: Send + Sync {\n    fn start(&self, total: Option<u64>, message: String);\n\n    fn update(&self, delta: u64, message: String);\n\n    fn finish(&self, message: String);\n}"
+    },
+    {
+      "id": "../Panos/src/ui/reporter.rs::struct::NoopReporter",
+      "label": "NoopReporter",
       "group": "structs",
       "val": 12,
-      "code": "pub struct Node {\n    pub id: String,\n    pub label: String,\n    pub group: String,\n    pub val: usize,\n    #[serde(skip_serializing_if = \"Option::is_none\")]\n    pub code: Option<String>,\n}"
+      "code": "pub struct NoopReporter;"
     },
     {
-      "id": "./src/models.rs::struct::Link",
-      "label": "Link",
-      "group": "structs",
-      "val": 12,
-      "code": "pub struct Link {\n    pub source: String,\n    pub target: String,\n    #[serde(rename = \"type\")]\n    pub link_type: String,\n}"
-    },
-    {
-      "id": "./src/models.rs::struct::GraphData",
-      "label": "GraphData",
-      "group": "structs",
-      "val": 12,
-      "code": "pub struct GraphData {\n    pub nodes: Vec<Node>,\n    pub links: Vec<Link>,\n}"
-    },
-    {
-      "id": "./src/scanner.rs",
-      "label": "scanner.rs",
-      "group": "src",
-      "val": 20
-    },
-    {
-      "id": "./src/scanner.rs::fn::find_rust_files",
-      "label": "find_rust_files()",
-      "group": "src",
+      "id": "../Panos/src/ui/reporter.rs::fn::start::363",
+      "label": "start()",
+      "group": "functions",
       "val": 8,
-      "code": "pub fn find_rust_files(target_dir: &str) -> Vec<PathBuf> {\n    let mut files = Vec::new();\n\n    for entry in WalkDir::new(target_dir)\n        .into_iter()\n        .filter_entry(|e| {\n            let name = e.file_name().to_string_lossy();\n            let is_hidden = name.starts_with(\".\") && name != \".\" && name != \"..\";\n            name != \"target\" && !is_hidden\n        })\n        .filter_map(|e| e.ok())\n        .filter(|e| e.file_type().is_file())\n    {\n        let path = entry.path();\n        if let Some(ext) = path.extension() {\n            if ext == \"rs\" {\n                files.push(path.to_path_buf());\n            }\n        }\n    }\n\n    files\n}"
+      "code": "fn start(&self, _total: Option<u64>, _message: String) {}"
     },
     {
-      "id": "./src/main.rs",
+      "id": "../Panos/src/ui/reporter.rs::fn::update::425",
+      "label": "update()",
+      "group": "functions",
+      "val": 8,
+      "code": "fn update(&self, _delta: u64, _message: String) {}"
+    },
+    {
+      "id": "../Panos/src/ui/reporter.rs::fn::finish::480",
+      "label": "finish()",
+      "group": "functions",
+      "val": 8,
+      "code": "fn finish(&self, _message: String) {}"
+    },
+    {
+      "id": "../Panos/src/ui/reporter.rs::struct::IndicatifReporter",
+      "label": "IndicatifReporter",
+      "group": "structs",
+      "val": 12,
+      "code": "pub struct IndicatifReporter {\n    pb: Mutex<Option<ProgressBar>>,\n}"
+    },
+    {
+      "id": "../Panos/src/ui/reporter.rs::fn::new::620",
+      "label": "new()",
+      "group": "functions",
+      "val": 8,
+      "code": "pub fn new() -> Self {\n        Self {\n            pb: Mutex::new(None),\n        }\n    }"
+    },
+    {
+      "id": "../Panos/src/ui/reporter.rs::fn::start::761",
+      "label": "start()",
+      "group": "functions",
+      "val": 8,
+      "code": "fn start(&self, total: Option<u64>, message: String) {\n        let pb = match total {\n            Some(t) => {\n                let p = ProgressBar::new(t);\n                p.set_style(\n                    ProgressStyle::default_bar()\n                        .template(\"{spinner:.green} {msg} [{bar:40.cyan/blue}] {pos}/{len} ({eta})\")\n                        .unwrap(),\n                );\n                p\n            }\n            None => {\n                let p = ProgressBar::new_spinner();\n                p.set_style(\n                    ProgressStyle::default_spinner()\n                        .template(\"{spinner:.green} {msg} [{elapsed_precise}]\")\n                        .unwrap(),\n                );\n                p\n            }\n        };\n        pb.set_message(message);\n        let mut guard = self.pb.lock().unwrap();\n        *guard = Some(pb);\n    }"
+    },
+    {
+      "id": "../Panos/src/ui/reporter.rs::fn::update::1634",
+      "label": "update()",
+      "group": "functions",
+      "val": 8,
+      "code": "fn update(&self, delta: u64, message: String) {\n        let guard = self.pb.lock().unwrap();\n        if let Some(pb) = guard.as_ref() {\n            if delta > 0 {\n                pb.inc(delta);\n            }\n            if !message.is_empty() {\n                pb.set_message(message);\n            } else {\n                pb.tick();\n            }\n        }\n    }"
+    },
+    {
+      "id": "../Panos/src/ui/reporter.rs::fn::finish::2002",
+      "label": "finish()",
+      "group": "functions",
+      "val": 8,
+      "code": "fn finish(&self, message: String) {\n        let guard = self.pb.lock().unwrap();\n        if let Some(pb) = guard.as_ref() {\n            pb.finish_with_message(message);\n        }\n    }"
+    },
+    {
+      "id": "../Panos/src/ui/mod.rs",
+      "label": "mod.rs",
+      "group": "ui",
+      "val": 20,
+      "code": "//! UI module\n\npub mod reporter;\n\npub use reporter::{IndicatifReporter, NoopReporter, ProgressReporter};\n"
+    },
+    {
+      "id": "../Panos/src/ui/mod.rs::use::pub use reporter::{IndicatifReporter, NoopReporter, ProgressReporter};",
+      "label": "pub reporter::{IndicatifReporter, NoopReporter, ProgressReporter}",
+      "group": "imports",
+      "val": 5,
+      "code": "pub use reporter::{IndicatifReporter, NoopReporter, ProgressReporter};"
+    },
+    {
+      "id": "../Panos/src/config/mod.rs",
+      "label": "mod.rs",
+      "group": "config",
+      "val": 20,
+      "code": "//! Configuration management module\n\npub mod loader;\n\npub use loader::{Config, Rule};\n"
+    },
+    {
+      "id": "../Panos/src/config/mod.rs::use::pub use loader::{Config, Rule};",
+      "label": "pub loader::{Config, Rule}",
+      "group": "imports",
+      "val": 5,
+      "code": "pub use loader::{Config, Rule};"
+    },
+    {
+      "id": "../Panos/src/config/loader.rs",
+      "label": "loader.rs",
+      "group": "config",
+      "val": 20,
+      "code": "//! Configuration loading and parsing\n\nuse anyhow::Result;\nuse serde::{Deserialize, Serialize};\nuse std::path::PathBuf;\n\n#[derive(Debug, Serialize, Deserialize, Clone)]\n#[serde(default)]\npub struct Rule {\n    pub name: String,\n    pub extensions: Vec<String>,\n    pub patterns: Vec<String>,\n    pub semantic_label: Option<String>,\n    pub destination: PathBuf,\n\n    #[serde(skip)]\n    pub glob_set: Option<globset::GlobSet>,\n}\n\nimpl Default for Rule {\n    fn default() -> Self {\n        Self {\n            name: String::new(),\n            extensions: vec![],\n            patterns: vec![],\n            semantic_label: None,\n            destination: PathBuf::new(),\n            glob_set: None,\n        }\n    }\n}\n\nimpl Rule {\n    pub fn matches(&self, filename: &str, extension: &str) -> bool {\n        // check pattern\n        if let Some(set) = &self.glob_set {\n            if set.is_match(filename) {\n                return true;\n            }\n        }\n \n        // check extension\n        for ext in &self.extensions {\n            if ext.to_lowercase() == extension {\n                return true;\n            }\n        }\n        false\n    }\n\n    pub fn sanitize(&mut self) {\n        // extensions sanitize\n        self.extensions = self\n            .extensions\n            .iter()\n            .map(|ext| {\n                let mut ext = ext.clone().to_lowercase();\n                if ext.starts_with('.') {\n                    ext = ext[1..].to_string();\n                }\n                ext\n            })\n            .collect();\n\n        // patterns compile\n        if !self.patterns.is_empty() {\n            let mut builder = globset::GlobSetBuilder::new();\n            for pattern in &self.patterns {\n                let pattern_lower = pattern.to_lowercase();\n                match globset::Glob::new(&pattern_lower) {\n                    Ok(g) => {\n                        builder.add(g);\n                    }\n                    Err(e) => {\n                        tracing::warn!(\"Invalid pattern {:?}: {}\", pattern_lower, e);\n                    }\n                }\n            }\n            self.glob_set = builder.build().ok();\n        }\n    }\n}\n\n#[derive(Debug, Serialize, Deserialize, Clone)]\n#[serde(default)]\npub struct Config {\n    pub source_dir: PathBuf,\n    pub rules: Vec<Rule>,\n    pub watch_mode: bool,\n    pub debounce_seconds: u64,\n    pub polling_interval_ms: u64,\n    pub temp_extensions: Vec<String>,\n    pub ignore_patterns: Vec<String>,\n    pub trash_dir: PathBuf,\n    pub duplicates_dir: PathBuf,\n    pub unknown_dir: PathBuf,\n    pub history_file: String,\n    pub exclude_hidden: bool,\n    pub model_dir: PathBuf,\n    pub ai_enabled: bool,\n    pub ai_threshold: f32,\n}\n\nimpl Default for Config {\n    fn default() -> Self {\n        Self {\n            source_dir: PathBuf::from(\".\"),\n            rules: vec![],\n            watch_mode: false,\n            debounce_seconds: 2,\n            polling_interval_ms: 100,\n            temp_extensions: vec![],\n            ignore_patterns: vec![],\n            trash_dir: PathBuf::from(\".panos_trash\"),\n            duplicates_dir: PathBuf::from(\".panos_duplicates\"),\n            unknown_dir: PathBuf::from(\".panos_unknown\"),\n            history_file: \".history.json\".to_string(),\n            exclude_hidden: true,\n            model_dir: PathBuf::from(\"model_assets\"),\n            ai_enabled: false,\n            ai_threshold: 0.55,\n        }\n    }\n}\n\nimpl Config {\n    pub fn load(path: &std::path::Path) -> Result<Self> {\n        let content: String = std::fs::read_to_string(path)?;\n        let mut config: Config = toml::from_str(&content)?;\n\n        if !config.source_dir.exists() {\n            return Err(anyhow::anyhow!(\n                \"Source directory does not exist: {:?}\",\n                config.source_dir\n            ));\n        }\n\n        config.sanitize();\n\n        Ok(config)\n    }\n\n    pub fn sanitize(&mut self) {\n        // temp_extensions sanitize\n        self.temp_extensions = self\n            .temp_extensions\n            .iter()\n            .map(|ext| {\n                let mut ext = ext.clone().to_lowercase();\n                if ext.starts_with('.') {\n                    ext = ext[1..].to_string();\n                }\n                ext\n            })\n            .collect();\n\n        // rules sanitize\n        for rule in &mut self.rules {\n            rule.sanitize();\n        }\n    }\n}\n"
+    },
+    {
+      "id": "../Panos/src/config/loader.rs::use::use anyhow::Result;",
+      "label": "anyhow::Result",
+      "group": "imports",
+      "val": 5,
+      "code": "use anyhow::Result;"
+    },
+    {
+      "id": "../Panos/src/config/loader.rs::struct::Rule",
+      "label": "Rule",
+      "group": "structs",
+      "val": 12,
+      "code": "pub struct Rule {\n    pub name: String,\n    pub extensions: Vec<String>,\n    pub patterns: Vec<String>,\n    pub semantic_label: Option<String>,\n    pub destination: PathBuf,\n\n    #[serde(skip)]\n    pub glob_set: Option<globset::GlobSet>,\n}"
+    },
+    {
+      "id": "../Panos/src/config/loader.rs::fn::default::456",
+      "label": "default()",
+      "group": "functions",
+      "val": 8,
+      "code": "fn default() -> Self {\n        Self {\n            name: String::new(),\n            extensions: vec![],\n            patterns: vec![],\n            semantic_label: None,\n            destination: PathBuf::new(),\n            glob_set: None,\n        }\n    }"
+    },
+    {
+      "id": "../Panos/src/config/loader.rs::fn::matches::727",
+      "label": "matches()",
+      "group": "functions",
+      "val": 8,
+      "code": "pub fn matches(&self, filename: &str, extension: &str) -> bool {\n        // check pattern\n        if let Some(set) = &self.glob_set {\n            if set.is_match(filename) {\n                return true;\n            }\n        }\n \n        // check extension\n        for ext in &self.extensions {\n            if ext.to_lowercase() == extension {\n                return true;\n            }\n        }\n        false\n    }"
+    },
+    {
+      "id": "../Panos/src/config/loader.rs::fn::sanitize::1148",
+      "label": "sanitize()",
+      "group": "functions",
+      "val": 8,
+      "code": "pub fn sanitize(&mut self) {\n        // extensions sanitize\n        self.extensions = self\n            .extensions\n            .iter()\n            .map(|ext| {\n                let mut ext = ext.clone().to_lowercase();\n                if ext.starts_with('.') {\n                    ext = ext[1..].to_string();\n                }\n                ext\n            })\n            .collect();\n\n        // patterns compile\n        if !self.patterns.is_empty() {\n            let mut builder = globset::GlobSetBuilder::new();\n            for pattern in &self.patterns {\n                let pattern_lower = pattern.to_lowercase();\n                match globset::Glob::new(&pattern_lower) {\n                    Ok(g) => {\n                        builder.add(g);\n                    }\n                    Err(e) => {\n                        tracing::warn!(\"Invalid pattern {:?}: {}\", pattern_lower, e);\n                    }\n                }\n            }\n            self.glob_set = builder.build().ok();\n        }\n    }"
+    },
+    {
+      "id": "../Panos/src/config/loader.rs::struct::Config",
+      "label": "Config",
+      "group": "structs",
+      "val": 12,
+      "code": "pub struct Config {\n    pub source_dir: PathBuf,\n    pub rules: Vec<Rule>,\n    pub watch_mode: bool,\n    pub debounce_seconds: u64,\n    pub polling_interval_ms: u64,\n    pub temp_extensions: Vec<String>,\n    pub ignore_patterns: Vec<String>,\n    pub trash_dir: PathBuf,\n    pub duplicates_dir: PathBuf,\n    pub unknown_dir: PathBuf,\n    pub history_file: String,\n    pub exclude_hidden: bool,\n    pub model_dir: PathBuf,\n    pub ai_enabled: bool,\n    pub ai_threshold: f32,\n}"
+    },
+    {
+      "id": "../Panos/src/config/loader.rs::fn::default::2733",
+      "label": "default()",
+      "group": "functions",
+      "val": 8,
+      "code": "fn default() -> Self {\n        Self {\n            source_dir: PathBuf::from(\".\"),\n            rules: vec![],\n            watch_mode: false,\n            debounce_seconds: 2,\n            polling_interval_ms: 100,\n            temp_extensions: vec![],\n            ignore_patterns: vec![],\n            trash_dir: PathBuf::from(\".panos_trash\"),\n            duplicates_dir: PathBuf::from(\".panos_duplicates\"),\n            unknown_dir: PathBuf::from(\".panos_unknown\"),\n            history_file: \".history.json\".to_string(),\n            exclude_hidden: true,\n            model_dir: PathBuf::from(\"model_assets\"),\n            ai_enabled: false,\n            ai_threshold: 0.55,\n        }\n    }"
+    },
+    {
+      "id": "../Panos/src/config/loader.rs::fn::load::3437",
+      "label": "load()",
+      "group": "functions",
+      "val": 8,
+      "code": "pub fn load(path: &std::path::Path) -> Result<Self> {\n        let content: String = std::fs::read_to_string(path)?;\n        let mut config: Config = toml::from_str(&content)?;\n\n        if !config.source_dir.exists() {\n            return Err(anyhow::anyhow!(\n                \"Source directory does not exist: {:?}\",\n                config.source_dir\n            ));\n        }\n\n        config.sanitize();\n\n        Ok(config)\n    }"
+    },
+    {
+      "id": "../Panos/src/config/loader.rs::fn::sanitize::3871",
+      "label": "sanitize()",
+      "group": "functions",
+      "val": 8,
+      "code": "pub fn sanitize(&mut self) {\n        // temp_extensions sanitize\n        self.temp_extensions = self\n            .temp_extensions\n            .iter()\n            .map(|ext| {\n                let mut ext = ext.clone().to_lowercase();\n                if ext.starts_with('.') {\n                    ext = ext[1..].to_string();\n                }\n                ext\n            })\n            .collect();\n\n        // rules sanitize\n        for rule in &mut self.rules {\n            rule.sanitize();\n        }\n    }"
+    },
+    {
+      "id": "../Panos/src/lib.rs",
+      "label": "lib.rs",
+      "group": "src",
+      "val": 20,
+      "code": "//! PANOS: Universal File Organizer OS Library\n\npub mod cli;\npub mod config;\npub mod file_ops;\npub mod organizer;\npub mod rules;\npub mod ui;\n\n// Re-export main types for convenience\npub use cli::Args;\npub use config::{Config, Rule};\npub use file_ops::{check_integrity, move_file, remove_empty_dirs};\npub use organizer::{organize, run_undo, watch_mode, watcher::{WatcherPaths, should_ignore}};\npub use rules::{PanosAI, find_rule_for_file, is_temp_file};\npub use ui::{IndicatifReporter, NoopReporter, ProgressReporter};\n"
+    },
+    {
+      "id": "../Panos/src/lib.rs::use::pub use cli::Args;",
+      "label": "pub cli::Args",
+      "group": "imports",
+      "val": 5,
+      "code": "pub use cli::Args;"
+    },
+    {
+      "id": "../Panos/src/lib.rs::use::pub use config::{Config, Rule};",
+      "label": "pub config::{Config, Rule}",
+      "group": "imports",
+      "val": 5,
+      "code": "pub use config::{Config, Rule};"
+    },
+    {
+      "id": "../Panos/src/lib.rs::use::pub use file_ops::{check_integrity, move_file, remove_empty_dirs};",
+      "label": "pub file_ops::{check_integrity, move_file, remove_empty_dirs}",
+      "group": "imports",
+      "val": 5,
+      "code": "pub use file_ops::{check_integrity, move_file, remove_empty_dirs};"
+    },
+    {
+      "id": "../Panos/src/lib.rs::use::pub use organizer::{organize, run_undo, watch_mode, watcher::{WatcherPaths, should_ignore}};",
+      "label": "pub organizer::{organize, run_undo, watch_mode, watcher::{WatcherPaths, should_ignore}}",
+      "group": "imports",
+      "val": 5,
+      "code": "pub use organizer::{organize, run_undo, watch_mode, watcher::{WatcherPaths, should_ignore}};"
+    },
+    {
+      "id": "../Panos/src/lib.rs::use::pub use rules::{PanosAI, find_rule_for_file, is_temp_file};",
+      "label": "pub rules::{PanosAI, find_rule_for_file, is_temp_file}",
+      "group": "imports",
+      "val": 5,
+      "code": "pub use rules::{PanosAI, find_rule_for_file, is_temp_file};"
+    },
+    {
+      "id": "../Panos/src/lib.rs::use::pub use ui::{IndicatifReporter, NoopReporter, ProgressReporter};",
+      "label": "pub ui::{IndicatifReporter, NoopReporter, ProgressReporter}",
+      "group": "imports",
+      "val": 5,
+      "code": "pub use ui::{IndicatifReporter, NoopReporter, ProgressReporter};"
+    },
+    {
+      "id": "../Panos/src/organizer/scanner.rs",
+      "label": "scanner.rs",
+      "group": "organizer",
+      "val": 20,
+      "code": "//! Directory scanning and organization logic\n\nuse anyhow::Result;\nuse rayon::prelude::*;\nuse std::collections::HashMap;\nuse std::path::PathBuf;\nuse tracing::info;\nuse walkdir::WalkDir;\n\nuse crate::config::Config;\nuse crate::file_ops::hashing::*;\nuse crate::file_ops::history::MoveRecord;\nuse crate::file_ops::move_file;\nuse crate::rules::ai::PanosAI;\nuse crate::rules::{find_rule_for_file, is_temp_file};\nuse crate::ui::ProgressReporter;\n\n/// Organize files in the source directory according to rules\npub fn organize(\n    config: &Config,\n    dry_run: bool,\n    reporter: &dyn ProgressReporter,\n    ai: &mut Option<PanosAI>,\n) -> Result<Vec<MoveRecord>> {\n    if !config.source_dir.exists() {\n        return Err(anyhow::anyhow!(\n            \"Source directory does not exist: {:?}\",\n            config.source_dir\n        ));\n    }\n\n    if dry_run {\n        info!(\"[DRY RUN] Scanning {:?}...\", config.source_dir);\n    } else {\n        info!(\"Scanning {:?}...\", config.source_dir);\n    }\n\n    // 1. Collect all files that need to be processed (Sequential)\n    // WalkDir is not easily parallelized, but collecting paths is fast.\n    let entries = collect_files(config, reporter);\n\n    // 2. Identify duplicates\n    let (unique_entries, duplicates) = identify_duplicates(entries, reporter);\n\n    let mut history = Vec::new();\n\n    // 3. Process all entries in parallel using Rayon (Rule-based)\n    let results = process_files_in_parallel(unique_entries, config, dry_run, reporter)?;\n\n    // 4. Separate processed files and pending files for AI\n    let mut pending_files = Vec::new();\n    for (path, res) in results {\n        if let Some(record) = res {\n            history.push(record);\n        } else {\n            pending_files.push(path);\n        }\n    }\n\n    // 5. Process pending files with AI\n    let (ai_history, still_pending) =\n        process_files_with_ai(pending_files, config, dry_run, reporter, ai)?;\n    history.extend(ai_history);\n\n    // 6. Move any remaining files to Unknown directory\n    let unknown_history = process_unknown_files(still_pending, config, dry_run, reporter)?;\n    history.extend(unknown_history);\n\n    let duplicate_results = process_duplicates(duplicates, config, dry_run, reporter)?;\n    history.extend(duplicate_results.into_iter().flatten());\n\n    Ok(history)\n}\n\nfn identify_duplicates(\n    entries: Vec<PathBuf>,\n    reporter: &dyn ProgressReporter,\n) -> (Vec<PathBuf>, Vec<(PathBuf, PathBuf)>) {\n    reporter.start(None, \"Identifying duplicate files...\".to_string());\n\n    //Group by size\n    let sizes: Vec<(u64, PathBuf)> = entries\n        .into_par_iter()\n        .filter_map(|path| get_file_size(&path).ok().map(|size| (size, path)))\n        .collect();\n\n    let mut by_size: HashMap<u64, Vec<PathBuf>> = HashMap::new();\n    for (size, path) in sizes {\n        by_size.entry(size).or_default().push(path);\n    }\n\n    let mut unique_entries = Vec::new();\n    let mut duplicates = Vec::new();\n\n    for (_size, paths) in by_size {\n        // Unique Check (Size)\n        if paths.len() == 1 {\n            unique_entries.push(paths[0].clone());\n            continue;\n        }\n\n        // Partial Check (First 4KB) - Parallelize Hashing\n        let partial_results: Vec<(PathBuf, Result<String, std::io::Error>)> = paths\n            .into_par_iter()\n            .map(|path| {\n                let h = calculate_partial_hash(&path);\n                (path, h)\n            })\n            .collect();\n\n        let mut by_partial: HashMap<String, Vec<PathBuf>> = HashMap::new();\n        for (path, res) in partial_results {\n            if let Ok(h) = res {\n                by_partial.entry(h).or_default().push(path);\n            } else {\n                unique_entries.push(path);\n            }\n        }\n\n        // Final Check (Full Hash)\n        for (_p_hash, p_paths) in by_partial {\n            if p_paths.len() == 1 {\n                unique_entries.push(p_paths[0].clone());\n                continue;\n            }\n\n            // Final Check (Full Hash) - Parallelize Hashing\n            let full_results: Vec<(PathBuf, Result<String, std::io::Error>)> = p_paths\n                .into_par_iter()\n                .map(|path| {\n                    let h = calculate_full_hash(&path);\n                    (path, h)\n                })\n                .collect();\n\n            let mut by_full: HashMap<String, Vec<PathBuf>> = HashMap::new();\n            for (path, res) in full_results {\n                if let Ok(f_hash) = res {\n                    by_full.entry(f_hash).or_default().push(path);\n                } else {\n                    unique_entries.push(path);\n                }\n            }\n\n            for (_f_hash, f_paths) in by_full {\n                // Unique file\n                unique_entries.push(f_paths[0].clone());\n                // Duplicate files\n                for dup in f_paths.iter().skip(1) {\n                    reporter.update(\n                        0,\n                        format!(\n                            \"Found duplicate: {}\",\n                            dup.file_name()\n                                .unwrap_or_default()\n                                .to_str()\n                                .unwrap_or(\"unknown\")\n                        ),\n                    );\n                    duplicates.push((dup.clone(), f_paths[0].clone()));\n                }\n            }\n        }\n    }\n\n    reporter.finish(format!(\n        \"Found {} unique files, {} duplicates\",\n        unique_entries.len(),\n        duplicates.len()\n    ));\n    (unique_entries, duplicates)\n}\n\nfn collect_files(config: &Config, reporter: &dyn ProgressReporter) -> Vec<PathBuf> {\n    reporter.start(None, \"Scanning directory...\".to_string());\n\n    let entries: Vec<PathBuf> = WalkDir::new(&config.source_dir)\n        .min_depth(1)\n        .into_iter()\n        .filter_entry(|e| {\n            // Optimization: Skip scanning into internal directories, hidden folders, or destinations\n            let name = e.file_name().to_str().unwrap_or(\"\");\n\n            reporter.update(0, format!(\"Scanning: {}\", name));\n\n            if config.exclude_hidden && name.starts_with('.') && name != \".\" && name != \"..\" {\n                return false;\n            }\n\n            // Ignore specific internal/managed files\n            if config\n                .ignore_patterns\n                .iter()\n                .any(|pattern| name == *pattern)\n                || name == config.trash_dir.to_str().unwrap_or(\"\")\n                || name == config.unknown_dir.to_str().unwrap_or(\"\")\n                || name == config.history_file\n            {\n                return false;\n            }\n\n            // Ignore destination directories of all rules\n            for rule in &config.rules {\n                if name == rule.destination.to_str().unwrap_or(\"\") {\n                    return false;\n                }\n            }\n            true\n        })\n        .filter_map(|e| e.ok())\n        .filter(|e| e.file_type().is_file())\n        .map(|e| e.path().to_path_buf())\n        .collect();\n    reporter.finish(format!(\n        \"Scan complete. Found {} candidates.\",\n        entries.len()\n    ));\n    entries\n}\n\nfn process_files_in_parallel(\n    entries: Vec<PathBuf>,\n    config: &Config,\n    dry_run: bool,\n    reporter: &dyn ProgressReporter,\n) -> Result<Vec<(PathBuf, Option<MoveRecord>)>> {\n    let total_files = entries.len() as u64;\n    reporter.start(Some(total_files), \"Organizing files...\".to_string());\n\n    let history_results: Result<Vec<(PathBuf, Option<MoveRecord>)>> = entries\n        .into_par_iter()\n        .map(|path| {\n            let file_name = path\n                .file_name()\n                .ok_or_else(|| anyhow::anyhow!(\"No filename\"))?\n                .to_str()\n                .ok_or_else(|| anyhow::anyhow!(\"Invalid filename encoding\"))?;\n\n            let result = if is_temp_file(&path, &config.temp_extensions) {\n                let trash_path: PathBuf = config.source_dir.join(&config.trash_dir).join(file_name);\n                move_file(&path, &trash_path, dry_run)\n            } else if let Some(rule) = find_rule_for_file(&path, &config.rules) {\n                let dest_path: PathBuf = config.source_dir.join(&rule.destination).join(file_name);\n                move_file(&path, &dest_path, dry_run)\n            } else {\n                Ok(None)\n            };\n\n            reporter.update(1, \"\".to_string());\n            result.map(|res| (path, res))\n        })\n        .collect();\n\n    reporter.finish(\"Processing complete!\".to_string());\n    history_results\n}\n\nfn process_files_with_ai(\n    pending_files: Vec<PathBuf>,\n    config: &Config,\n    dry_run: bool,\n    reporter: &dyn ProgressReporter,\n    ai: &mut Option<PanosAI>,\n) -> Result<(Vec<MoveRecord>, Vec<PathBuf>)> {\n    let mut history = Vec::new();\n    let mut still_pending = Vec::new();\n\n    if pending_files.is_empty() {\n        return Ok((history, still_pending));\n    }\n\n    if let Some(ai_engine) = ai {\n        info!(\"Processing {} files with AI...\", pending_files.len());\n        for path in pending_files {\n            let file_name = path\n                .file_name()\n                .ok_or_else(|| anyhow::anyhow!(\"No filename\"))?\n                .to_str()\n                .ok_or_else(|| anyhow::anyhow!(\"Invalid filename encoding\"))?;\n\n            if let Some(rule) = ai_engine.determine_rule(file_name, config, &config.rules) {\n                let dest_path = config.source_dir.join(&rule.destination).join(file_name);\n                if let Ok(Some(record)) = move_file(&path, &dest_path, dry_run) {\n                    history.push(record);\n                }\n                reporter.update(1, \"\".to_string());\n            } else {\n                still_pending.push(path);\n            }\n        }\n    } else {\n        still_pending = pending_files;\n    }\n\n    Ok((history, still_pending))\n}\n\nfn process_unknown_files(\n    pending_files: Vec<PathBuf>,\n    config: &Config,\n    dry_run: bool,\n    reporter: &dyn ProgressReporter,\n) -> Result<Vec<MoveRecord>> {\n    let mut history = Vec::new();\n\n    if pending_files.is_empty() {\n        return Ok(history);\n    }\n\n    info!(\"Moving {} unknown files...\", pending_files.len());\n    for path in pending_files {\n        let file_name = path\n            .file_name()\n            .ok_or_else(|| anyhow::anyhow!(\"No filename\"))?\n            .to_str()\n            .ok_or_else(|| anyhow::anyhow!(\"Invalid filename encoding\"))?;\n\n        let unknown_path = config.source_dir.join(&config.unknown_dir).join(file_name);\n        if let Ok(Some(record)) = move_file(&path, &unknown_path, dry_run) {\n            history.push(record);\n        }\n        reporter.update(1, \"\".to_string());\n    }\n\n    Ok(history)\n}\n\nfn process_duplicates(\n    duplicates: Vec<(PathBuf, PathBuf)>,\n    config: &Config,\n    dry_run: bool,\n    reporter: &dyn ProgressReporter,\n) -> Result<Vec<Option<MoveRecord>>> {\n    if duplicates.is_empty() {\n        return Ok(vec![]);\n    }\n\n    reporter.start(\n        Some(duplicates.len() as u64),\n        \"Moving duplicates...\".to_string(),\n    );\n\n    let results: Result<Vec<Option<MoveRecord>>> = duplicates\n        .into_par_iter()\n        .map(|(path, _original)| {\n            let file_name = path\n                .file_name()\n                .ok_or_else(|| anyhow::anyhow!(\"No filename\"))?;\n\n            let dest_path = config\n                .source_dir\n                .join(&config.duplicates_dir)\n                .join(file_name);\n\n            let res = move_file(&path, &dest_path, dry_run);\n            reporter.update(1, \"\".to_string());\n            res\n        })\n        .collect();\n\n    reporter.finish(\"Duplicates processed!\".to_string());\n    results\n}\n"
+    },
+    {
+      "id": "../Panos/src/organizer/scanner.rs::use::use anyhow::Result;",
+      "label": "anyhow::Result",
+      "group": "imports",
+      "val": 5,
+      "code": "use anyhow::Result;"
+    },
+    {
+      "id": "../Panos/src/organizer/scanner.rs::use::use rayon::prelude::*;",
+      "label": "rayon::prelude::*",
+      "group": "imports",
+      "val": 5,
+      "code": "use rayon::prelude::*;"
+    },
+    {
+      "id": "../Panos/src/organizer/scanner.rs::use::use tracing::info;",
+      "label": "tracing::info",
+      "group": "imports",
+      "val": 5,
+      "code": "use tracing::info;"
+    },
+    {
+      "id": "../Panos/src/organizer/scanner.rs::use::use crate::config::Config;",
+      "label": "crate::config::Config",
+      "group": "imports",
+      "val": 5,
+      "code": "use crate::config::Config;"
+    },
+    {
+      "id": "../Panos/src/organizer/scanner.rs::use::use crate::file_ops::hashing::*;",
+      "label": "crate::file_ops::hashing::*",
+      "group": "imports",
+      "val": 5,
+      "code": "use crate::file_ops::hashing::*;"
+    },
+    {
+      "id": "../Panos/src/organizer/scanner.rs::use::use crate::file_ops::history::MoveRecord;",
+      "label": "crate::file_ops::history::MoveRecord",
+      "group": "imports",
+      "val": 5,
+      "code": "use crate::file_ops::history::MoveRecord;"
+    },
+    {
+      "id": "../Panos/src/organizer/scanner.rs::use::use crate::file_ops::move_file;",
+      "label": "crate::file_ops::move_file",
+      "group": "imports",
+      "val": 5,
+      "code": "use crate::file_ops::move_file;"
+    },
+    {
+      "id": "../Panos/src/organizer/scanner.rs::use::use crate::rules::ai::PanosAI;",
+      "label": "crate::rules::ai::PanosAI",
+      "group": "imports",
+      "val": 5,
+      "code": "use crate::rules::ai::PanosAI;"
+    },
+    {
+      "id": "../Panos/src/organizer/scanner.rs::use::use crate::rules::{find_rule_for_file, is_temp_file};",
+      "label": "crate::rules::{find_rule_for_file, is_temp_file}",
+      "group": "imports",
+      "val": 5,
+      "code": "use crate::rules::{find_rule_for_file, is_temp_file};"
+    },
+    {
+      "id": "../Panos/src/organizer/scanner.rs::use::use crate::ui::ProgressReporter;",
+      "label": "crate::ui::ProgressReporter",
+      "group": "imports",
+      "val": 5,
+      "code": "use crate::ui::ProgressReporter;"
+    },
+    {
+      "id": "../Panos/src/organizer/scanner.rs::fn::organize::502",
+      "label": "organize()",
+      "group": "functions",
+      "val": 8,
+      "code": "pub fn organize(\n    config: &Config,\n    dry_run: bool,\n    reporter: &dyn ProgressReporter,\n    ai: &mut Option<PanosAI>,\n) -> Result<Vec<MoveRecord>> {\n    if !config.source_dir.exists() {\n        return Err(anyhow::anyhow!(\n            \"Source directory does not exist: {:?}\",\n            config.source_dir\n        ));\n    }\n\n    if dry_run {\n        info!(\"[DRY RUN] Scanning {:?}...\", config.source_dir);\n    } else {\n        info!(\"Scanning {:?}...\", config.source_dir);\n    }\n\n    // 1. Collect all files that need to be processed (Sequential)\n    // WalkDir is not easily parallelized, but collecting paths is fast.\n    let entries = collect_files(config, reporter);\n\n    // 2. Identify duplicates\n    let (unique_entries, duplicates) = identify_duplicates(entries, reporter);\n\n    let mut history = Vec::new();\n\n    // 3. Process all entries in parallel using Rayon (Rule-based)\n    let results = process_files_in_parallel(unique_entries, config, dry_run, reporter)?;\n\n    // 4. Separate processed files and pending files for AI\n    let mut pending_files = Vec::new();\n    for (path, res) in results {\n        if let Some(record) = res {\n            history.push(record);\n        } else {\n            pending_files.push(path);\n        }\n    }\n\n    // 5. Process pending files with AI\n    let (ai_history, still_pending) =\n        process_files_with_ai(pending_files, config, dry_run, reporter, ai)?;\n    history.extend(ai_history);\n\n    // 6. Move any remaining files to Unknown directory\n    let unknown_history = process_unknown_files(still_pending, config, dry_run, reporter)?;\n    history.extend(unknown_history);\n\n    let duplicate_results = process_duplicates(duplicates, config, dry_run, reporter)?;\n    history.extend(duplicate_results.into_iter().flatten());\n\n    Ok(history)\n}"
+    },
+    {
+      "id": "../Panos/src/organizer/scanner.rs::fn::identify_duplicates::2300",
+      "label": "identify_duplicates()",
+      "group": "functions",
+      "val": 8,
+      "code": "fn identify_duplicates(\n    entries: Vec<PathBuf>,\n    reporter: &dyn ProgressReporter,\n) -> (Vec<PathBuf>, Vec<(PathBuf, PathBuf)>) {\n    reporter.start(None, \"Identifying duplicate files...\".to_string());\n\n    //Group by size\n    let sizes: Vec<(u64, PathBuf)> = entries\n        .into_par_iter()\n        .filter_map(|path| get_file_size(&path).ok().map(|size| (size, path)))\n        .collect();\n\n    let mut by_size: HashMap<u64, Vec<PathBuf>> = HashMap::new();\n    for (size, path) in sizes {\n        by_size.entry(size).or_default().push(path);\n    }\n\n    let mut unique_entries = Vec::new();\n    let mut duplicates = Vec::new();\n\n    for (_size, paths) in by_size {\n        // Unique Check (Size)\n        if paths.len() == 1 {\n            unique_entries.push(paths[0].clone());\n            continue;\n        }\n\n        // Partial Check (First 4KB) - Parallelize Hashing\n        let partial_results: Vec<(PathBuf, Result<String, std::io::Error>)> = paths\n            .into_par_iter()\n            .map(|path| {\n                let h = calculate_partial_hash(&path);\n                (path, h)\n            })\n            .collect();\n\n        let mut by_partial: HashMap<String, Vec<PathBuf>> = HashMap::new();\n        for (path, res) in partial_results {\n            if let Ok(h) = res {\n                by_partial.entry(h).or_default().push(path);\n            } else {\n                unique_entries.push(path);\n            }\n        }\n\n        // Final Check (Full Hash)\n        for (_p_hash, p_paths) in by_partial {\n            if p_paths.len() == 1 {\n                unique_entries.push(p_paths[0].clone());\n                continue;\n            }\n\n            // Final Check (Full Hash) - Parallelize Hashing\n            let full_results: Vec<(PathBuf, Result<String, std::io::Error>)> = p_paths\n                .into_par_iter()\n                .map(|path| {\n                    let h = calculate_full_hash(&path);\n                    (path, h)\n                })\n                .collect();\n\n            let mut by_full: HashMap<String, Vec<PathBuf>> = HashMap::new();\n            for (path, res) in full_results {\n                if let Ok(f_hash) = res {\n                    by_full.entry(f_hash).or_default().push(path);\n                } else {\n                    unique_entries.push(path);\n                }\n            }\n\n            for (_f_hash, f_paths) in by_full {\n                // Unique file\n                unique_entries.push(f_paths[0].clone());\n                // Duplicate files\n                for dup in f_paths.iter().skip(1) {\n                    reporter.update(\n                        0,\n                        format!(\n                            \"Found duplicate: {}\",\n                            dup.file_name()\n                                .unwrap_or_default()\n                                .to_str()\n                                .unwrap_or(\"unknown\")\n                        ),\n                    );\n                    duplicates.push((dup.clone(), f_paths[0].clone()));\n                }\n            }\n        }\n    }\n\n    reporter.finish(format!(\n        \"Found {} unique files, {} duplicates\",\n        unique_entries.len(),\n        duplicates.len()\n    ));\n    (unique_entries, duplicates)\n}"
+    },
+    {
+      "id": "../Panos/src/organizer/scanner.rs::fn::collect_files::5548",
+      "label": "collect_files()",
+      "group": "functions",
+      "val": 8,
+      "code": "fn collect_files(config: &Config, reporter: &dyn ProgressReporter) -> Vec<PathBuf> {\n    reporter.start(None, \"Scanning directory...\".to_string());\n\n    let entries: Vec<PathBuf> = WalkDir::new(&config.source_dir)\n        .min_depth(1)\n        .into_iter()\n        .filter_entry(|e| {\n            // Optimization: Skip scanning into internal directories, hidden folders, or destinations\n            let name = e.file_name().to_str().unwrap_or(\"\");\n\n            reporter.update(0, format!(\"Scanning: {}\", name));\n\n            if config.exclude_hidden && name.starts_with('.') && name != \".\" && name != \"..\" {\n                return false;\n            }\n\n            // Ignore specific internal/managed files\n            if config\n                .ignore_patterns\n                .iter()\n                .any(|pattern| name == *pattern)\n                || name == config.trash_dir.to_str().unwrap_or(\"\")\n                || name == config.unknown_dir.to_str().unwrap_or(\"\")\n                || name == config.history_file\n            {\n                return false;\n            }\n\n            // Ignore destination directories of all rules\n            for rule in &config.rules {\n                if name == rule.destination.to_str().unwrap_or(\"\") {\n                    return false;\n                }\n            }\n            true\n        })\n        .filter_map(|e| e.ok())\n        .filter(|e| e.file_type().is_file())\n        .map(|e| e.path().to_path_buf())\n        .collect();\n    reporter.finish(format!(\n        \"Scan complete. Found {} candidates.\",\n        entries.len()\n    ));\n    entries\n}"
+    },
+    {
+      "id": "../Panos/src/organizer/scanner.rs::fn::process_files_in_parallel::7146",
+      "label": "process_files_in_parallel()",
+      "group": "functions",
+      "val": 8,
+      "code": "fn process_files_in_parallel(\n    entries: Vec<PathBuf>,\n    config: &Config,\n    dry_run: bool,\n    reporter: &dyn ProgressReporter,\n) -> Result<Vec<(PathBuf, Option<MoveRecord>)>> {\n    let total_files = entries.len() as u64;\n    reporter.start(Some(total_files), \"Organizing files...\".to_string());\n\n    let history_results: Result<Vec<(PathBuf, Option<MoveRecord>)>> = entries\n        .into_par_iter()\n        .map(|path| {\n            let file_name = path\n                .file_name()\n                .ok_or_else(|| anyhow::anyhow!(\"No filename\"))?\n                .to_str()\n                .ok_or_else(|| anyhow::anyhow!(\"Invalid filename encoding\"))?;\n\n            let result = if is_temp_file(&path, &config.temp_extensions) {\n                let trash_path: PathBuf = config.source_dir.join(&config.trash_dir).join(file_name);\n                move_file(&path, &trash_path, dry_run)\n            } else if let Some(rule) = find_rule_for_file(&path, &config.rules) {\n                let dest_path: PathBuf = config.source_dir.join(&rule.destination).join(file_name);\n                move_file(&path, &dest_path, dry_run)\n            } else {\n                Ok(None)\n            };\n\n            reporter.update(1, \"\".to_string());\n            result.map(|res| (path, res))\n        })\n        .collect();\n\n    reporter.finish(\"Processing complete!\".to_string());\n    history_results\n}"
+    },
+    {
+      "id": "../Panos/src/organizer/scanner.rs::fn::process_files_with_ai::8537",
+      "label": "process_files_with_ai()",
+      "group": "functions",
+      "val": 8,
+      "code": "fn process_files_with_ai(\n    pending_files: Vec<PathBuf>,\n    config: &Config,\n    dry_run: bool,\n    reporter: &dyn ProgressReporter,\n    ai: &mut Option<PanosAI>,\n) -> Result<(Vec<MoveRecord>, Vec<PathBuf>)> {\n    let mut history = Vec::new();\n    let mut still_pending = Vec::new();\n\n    if pending_files.is_empty() {\n        return Ok((history, still_pending));\n    }\n\n    if let Some(ai_engine) = ai {\n        info!(\"Processing {} files with AI...\", pending_files.len());\n        for path in pending_files {\n            let file_name = path\n                .file_name()\n                .ok_or_else(|| anyhow::anyhow!(\"No filename\"))?\n                .to_str()\n                .ok_or_else(|| anyhow::anyhow!(\"Invalid filename encoding\"))?;\n\n            if let Some(rule) = ai_engine.determine_rule(file_name, config, &config.rules) {\n                let dest_path = config.source_dir.join(&rule.destination).join(file_name);\n                if let Ok(Some(record)) = move_file(&path, &dest_path, dry_run) {\n                    history.push(record);\n                }\n                reporter.update(1, \"\".to_string());\n            } else {\n                still_pending.push(path);\n            }\n        }\n    } else {\n        still_pending = pending_files;\n    }\n\n    Ok((history, still_pending))\n}"
+    },
+    {
+      "id": "../Panos/src/organizer/scanner.rs::fn::process_unknown_files::9843",
+      "label": "process_unknown_files()",
+      "group": "functions",
+      "val": 8,
+      "code": "fn process_unknown_files(\n    pending_files: Vec<PathBuf>,\n    config: &Config,\n    dry_run: bool,\n    reporter: &dyn ProgressReporter,\n) -> Result<Vec<MoveRecord>> {\n    let mut history = Vec::new();\n\n    if pending_files.is_empty() {\n        return Ok(history);\n    }\n\n    info!(\"Moving {} unknown files...\", pending_files.len());\n    for path in pending_files {\n        let file_name = path\n            .file_name()\n            .ok_or_else(|| anyhow::anyhow!(\"No filename\"))?\n            .to_str()\n            .ok_or_else(|| anyhow::anyhow!(\"Invalid filename encoding\"))?;\n\n        let unknown_path = config.source_dir.join(&config.unknown_dir).join(file_name);\n        if let Ok(Some(record)) = move_file(&path, &unknown_path, dry_run) {\n            history.push(record);\n        }\n        reporter.update(1, \"\".to_string());\n    }\n\n    Ok(history)\n}"
+    },
+    {
+      "id": "../Panos/src/organizer/scanner.rs::fn::process_duplicates::10699",
+      "label": "process_duplicates()",
+      "group": "functions",
+      "val": 8,
+      "code": "fn process_duplicates(\n    duplicates: Vec<(PathBuf, PathBuf)>,\n    config: &Config,\n    dry_run: bool,\n    reporter: &dyn ProgressReporter,\n) -> Result<Vec<Option<MoveRecord>>> {\n    if duplicates.is_empty() {\n        return Ok(vec![]);\n    }\n\n    reporter.start(\n        Some(duplicates.len() as u64),\n        \"Moving duplicates...\".to_string(),\n    );\n\n    let results: Result<Vec<Option<MoveRecord>>> = duplicates\n        .into_par_iter()\n        .map(|(path, _original)| {\n            let file_name = path\n                .file_name()\n                .ok_or_else(|| anyhow::anyhow!(\"No filename\"))?;\n\n            let dest_path = config\n                .source_dir\n                .join(&config.duplicates_dir)\n                .join(file_name);\n\n            let res = move_file(&path, &dest_path, dry_run);\n            reporter.update(1, \"\".to_string());\n            res\n        })\n        .collect();\n\n    reporter.finish(\"Duplicates processed!\".to_string());\n    results\n}"
+    },
+    {
+      "id": "../Panos/src/organizer/mod.rs",
+      "label": "mod.rs",
+      "group": "organizer",
+      "val": 20,
+      "code": "//! File organization module\n\npub mod scanner;\npub mod undo;\npub mod watcher;\n\npub use scanner::organize;\npub use undo::run_undo;\npub use watcher::{WatcherPaths, watch_mode};\n"
+    },
+    {
+      "id": "../Panos/src/organizer/mod.rs::use::pub use scanner::organize;",
+      "label": "pub scanner::organize",
+      "group": "imports",
+      "val": 5,
+      "code": "pub use scanner::organize;"
+    },
+    {
+      "id": "../Panos/src/organizer/mod.rs::use::pub use undo::run_undo;",
+      "label": "pub undo::run_undo",
+      "group": "imports",
+      "val": 5,
+      "code": "pub use undo::run_undo;"
+    },
+    {
+      "id": "../Panos/src/organizer/mod.rs::use::pub use watcher::{WatcherPaths, watch_mode};",
+      "label": "pub watcher::{WatcherPaths, watch_mode}",
+      "group": "imports",
+      "val": 5,
+      "code": "pub use watcher::{WatcherPaths, watch_mode};"
+    },
+    {
+      "id": "../Panos/src/organizer/watcher.rs",
+      "label": "watcher.rs",
+      "group": "organizer",
+      "val": 20,
+      "code": "//! Watcher logic\n\nuse anyhow::{Context, Result};\nuse notify::{Config as NotifyConfig, Event, RecommendedWatcher, RecursiveMode, Watcher};\nuse std::path::PathBuf;\nuse std::sync::atomic::{AtomicBool, Ordering};\nuse std::sync::mpsc::{Receiver, channel};\nuse std::time::{Duration, Instant};\nuse tracing::{debug, error, info, warn};\n\nuse crate::config::Config;\nuse crate::file_ops::{Session, remove_empty_dirs};\nuse crate::organizer::organize;\nuse crate::rules::ai::PanosAI;\nuse crate::ui::NoopReporter;\n\n/// Global lock to prevent the watcher from reacting to our own file movements\nstatic IS_ORGANIZING: AtomicBool = AtomicBool::new(false);\n \npub struct WatcherPaths {\n    abs_source: PathBuf,\n    abs_trash: PathBuf,\n    abs_unknown: PathBuf,\n    abs_history: PathBuf,\n    abs_destinations: Vec<PathBuf>,\n}\n \nimpl WatcherPaths {\n    pub fn new(config: &Config) -> Self {\n        let abs_source =\n            std::fs::canonicalize(&config.source_dir).unwrap_or(config.source_dir.clone());\n        let abs_trash = abs_source.join(&config.trash_dir);\n        let abs_unknown = abs_source.join(&config.unknown_dir);\n        let abs_history = abs_source.join(&config.history_file);\n        let abs_destinations = config\n            .rules\n            .iter()\n            .map(|r| abs_source.join(&r.destination))\n            .collect();\n \n        Self {\n            abs_source,\n            abs_trash,\n            abs_unknown,\n            abs_history,\n            abs_destinations,\n        }\n    }\n}\n\npub fn watch_mode(config: &Config, dry_run: bool, ai: &mut Option<PanosAI>) -> Result<()> {\n    let source_dir = &config.source_dir;\n\n    let (tx, rx) = channel();\n\n    let mut watcher =\n        RecommendedWatcher::new(tx, NotifyConfig::default()).context(\"Failed to create watcher\")?;\n\n    watcher\n        .watch(source_dir, RecursiveMode::Recursive)\n        .context(format!(\"Failed to watch directory: {:?}\", source_dir))?;\n\n    info!(\"👀 Watching for changes in: {:?}\", source_dir);\n\n    let paths = WatcherPaths::new(config);\n    run_event_loop(rx, config, dry_run, ai, &paths)\n}\n\nfn run_event_loop(\n    rx: Receiver<Result<Event, notify::Error>>,\n    config: &Config,\n    dry_run: bool,\n    ai: &mut Option<PanosAI>,\n    paths: &WatcherPaths,\n) -> Result<()> {\n    let mut last_event_time = None;\n    let debounce_duration = Duration::from_secs(config.debounce_seconds);\n\n    loop {\n        match rx.recv_timeout(Duration::from_millis(config.polling_interval_ms)) {\n            Ok(Ok(event)) => {\n                debug!(\n                    \"Event detected: {:?} for paths: {:?}\",\n                    event.kind, event.paths\n                );\n\n                // Check if we are currently organizing (Atomic Lock) and Filter out unnecessary events (Path Exclusion)\n                if IS_ORGANIZING.load(Ordering::SeqCst) || should_ignore(&event, config, paths) {\n                    continue;\n                }\n\n                // Check if the event is a file modification or creation\n                if event.kind.is_modify() || event.kind.is_create() {\n                    if event.paths.iter().any(|p| p.is_file()) {\n                        debug!(\"Event detected: {:?}\", event.kind);\n                        last_event_time = Some(Instant::now());\n                    }\n                }\n            }\n            Ok(Err(e)) => warn!(\"Watcher error: {:?}\", e),\n            Err(_) => {\n                if let Some(last_time) = last_event_time {\n                    if last_time.elapsed() >= debounce_duration {\n                        process_stabilized_events(config, dry_run, ai);\n                        last_event_time = None;\n                    }\n                }\n            }\n        }\n    }\n}\n\n/// Determines if an event should be ignored.\n/// An event is ignored ONLY if ALL paths in it are considered noise (trash, destinations, etc.)\npub fn should_ignore(event: &Event, config: &Config, wp: &WatcherPaths) -> bool {\n    // If all paths in the event match ignore criteria, then we ignore the whole event.\n    // If even one path is \"valid\" (should be organized), we return false to trigger organize.\n    event.paths.iter().all(|path| {\n        let abs_path = std::fs::canonicalize(path).unwrap_or(path.to_path_buf());\n\n        // 1. Ignore source directory itself\n        if abs_path == wp.abs_source {\n            return true;\n        }\n\n        // 2. Ignore internal managed directories (trash, unknown, history)\n        if abs_path.starts_with(&wp.abs_trash)\n            || abs_path.starts_with(&wp.abs_unknown)\n            || abs_path == wp.abs_history\n        {\n            return true;\n        }\n\n        // 3. Ignore hidden files and user-defined ignore patterns\n        if let Some(name) = abs_path.file_name().and_then(|n| n.to_str()) {\n            if config.ignore_patterns.iter().any(|p| name == *p) {\n                return true;\n            }\n            if config.exclude_hidden && name.starts_with('.') {\n                return true;\n            }\n        }\n\n        // 4. Ignore destination paths (to prevent trigger recursion when moving files)\n        for dest_path in &wp.abs_destinations {\n            if abs_path.starts_with(dest_path) {\n                return true;\n            }\n        }\n\n        false\n    })\n}\n\nfn process_stabilized_events(config: &Config, dry_run: bool, ai: &mut Option<PanosAI>) {\n    info!(\"🚀 Change detected and stabilized. Running organization...\");\n\n    let reporter = NoopReporter;\n\n    // Set lock before starting\n    IS_ORGANIZING.store(true, Ordering::SeqCst);\n\n    match organize(config, dry_run, &reporter, ai) {\n        Ok(history) if !history.is_empty() => {\n            let mut session =\n                Session::load(&config.source_dir, &config.history_file).unwrap_or_default();\n\n            session.moves.extend(history);\n\n            if let Err(e) = session.save(&config.source_dir, &config.history_file) {\n                error!(\"Failed to save history: {}\", e);\n            }\n            info!(\"History updated in watch mode.\");\n\n            // Clean up empty directories\n            if let Err(e) =\n                remove_empty_dirs(&config.source_dir, dry_run, &session.moves, &reporter)\n            {\n                error!(\"Failed to clean up empty directories: {}\", e);\n            }\n        }\n        Err(e) => error!(\"Organization failed during watch mode: {:?}\", e),\n        _ => {}\n    }\n\n    // Release lock after finishing\n    IS_ORGANIZING.store(false, Ordering::SeqCst);\n}\n"
+    },
+    {
+      "id": "../Panos/src/organizer/watcher.rs::use::use anyhow::{Context, Result};",
+      "label": "anyhow::{Context, Result}",
+      "group": "imports",
+      "val": 5,
+      "code": "use anyhow::{Context, Result};"
+    },
+    {
+      "id": "../Panos/src/organizer/watcher.rs::use::use notify::{Config as NotifyConfig, Event, RecommendedWatcher, RecursiveMode, Watcher};",
+      "label": "notify::{Config as NotifyConfig, Event, RecommendedWatcher, RecursiveMode, Watcher}",
+      "group": "imports",
+      "val": 5,
+      "code": "use notify::{Config as NotifyConfig, Event, RecommendedWatcher, RecursiveMode, Watcher};"
+    },
+    {
+      "id": "../Panos/src/organizer/watcher.rs::use::use tracing::{debug, error, info, warn};",
+      "label": "tracing::{debug, error, info, warn}",
+      "group": "imports",
+      "val": 5,
+      "code": "use tracing::{debug, error, info, warn};"
+    },
+    {
+      "id": "../Panos/src/organizer/watcher.rs::use::use crate::config::Config;",
+      "label": "crate::config::Config",
+      "group": "imports",
+      "val": 5,
+      "code": "use crate::config::Config;"
+    },
+    {
+      "id": "../Panos/src/organizer/watcher.rs::use::use crate::file_ops::{Session, remove_empty_dirs};",
+      "label": "crate::file_ops::{Session, remove_empty_dirs}",
+      "group": "imports",
+      "val": 5,
+      "code": "use crate::file_ops::{Session, remove_empty_dirs};"
+    },
+    {
+      "id": "../Panos/src/organizer/watcher.rs::use::use crate::organizer::organize;",
+      "label": "crate::organizer::organize",
+      "group": "imports",
+      "val": 5,
+      "code": "use crate::organizer::organize;"
+    },
+    {
+      "id": "../Panos/src/organizer/watcher.rs::use::use crate::rules::ai::PanosAI;",
+      "label": "crate::rules::ai::PanosAI",
+      "group": "imports",
+      "val": 5,
+      "code": "use crate::rules::ai::PanosAI;"
+    },
+    {
+      "id": "../Panos/src/organizer/watcher.rs::use::use crate::ui::NoopReporter;",
+      "label": "crate::ui::NoopReporter",
+      "group": "imports",
+      "val": 5,
+      "code": "use crate::ui::NoopReporter;"
+    },
+    {
+      "id": "../Panos/src/organizer/watcher.rs::struct::WatcherPaths",
+      "label": "WatcherPaths",
+      "group": "structs",
+      "val": 12,
+      "code": "pub struct WatcherPaths {\n    abs_source: PathBuf,\n    abs_trash: PathBuf,\n    abs_unknown: PathBuf,\n    abs_history: PathBuf,\n    abs_destinations: Vec<PathBuf>,\n}"
+    },
+    {
+      "id": "../Panos/src/organizer/watcher.rs::fn::new::832",
+      "label": "new()",
+      "group": "functions",
+      "val": 8,
+      "code": "pub fn new(config: &Config) -> Self {\n        let abs_source =\n            std::fs::canonicalize(&config.source_dir).unwrap_or(config.source_dir.clone());\n        let abs_trash = abs_source.join(&config.trash_dir);\n        let abs_unknown = abs_source.join(&config.unknown_dir);\n        let abs_history = abs_source.join(&config.history_file);\n        let abs_destinations = config\n            .rules\n            .iter()\n            .map(|r| abs_source.join(&r.destination))\n            .collect();\n \n        Self {\n            abs_source,\n            abs_trash,\n            abs_unknown,\n            abs_history,\n            abs_destinations,\n        }\n    }"
+    },
+    {
+      "id": "../Panos/src/organizer/watcher.rs::fn::watch_mode::1494",
+      "label": "watch_mode()",
+      "group": "functions",
+      "val": 8,
+      "code": "pub fn watch_mode(config: &Config, dry_run: bool, ai: &mut Option<PanosAI>) -> Result<()> {\n    let source_dir = &config.source_dir;\n\n    let (tx, rx) = channel();\n\n    let mut watcher =\n        RecommendedWatcher::new(tx, NotifyConfig::default()).context(\"Failed to create watcher\")?;\n\n    watcher\n        .watch(source_dir, RecursiveMode::Recursive)\n        .context(format!(\"Failed to watch directory: {:?}\", source_dir))?;\n\n    info!(\"👀 Watching for changes in: {:?}\", source_dir);\n\n    let paths = WatcherPaths::new(config);\n    run_event_loop(rx, config, dry_run, ai, &paths)\n}"
+    },
+    {
+      "id": "../Panos/src/organizer/watcher.rs::fn::run_event_loop::2082",
+      "label": "run_event_loop()",
+      "group": "functions",
+      "val": 8,
+      "code": "fn run_event_loop(\n    rx: Receiver<Result<Event, notify::Error>>,\n    config: &Config,\n    dry_run: bool,\n    ai: &mut Option<PanosAI>,\n    paths: &WatcherPaths,\n) -> Result<()> {\n    let mut last_event_time = None;\n    let debounce_duration = Duration::from_secs(config.debounce_seconds);\n\n    loop {\n        match rx.recv_timeout(Duration::from_millis(config.polling_interval_ms)) {\n            Ok(Ok(event)) => {\n                debug!(\n                    \"Event detected: {:?} for paths: {:?}\",\n                    event.kind, event.paths\n                );\n\n                // Check if we are currently organizing (Atomic Lock) and Filter out unnecessary events (Path Exclusion)\n                if IS_ORGANIZING.load(Ordering::SeqCst) || should_ignore(&event, config, paths) {\n                    continue;\n                }\n\n                // Check if the event is a file modification or creation\n                if event.kind.is_modify() || event.kind.is_create() {\n                    if event.paths.iter().any(|p| p.is_file()) {\n                        debug!(\"Event detected: {:?}\", event.kind);\n                        last_event_time = Some(Instant::now());\n                    }\n                }\n            }\n            Ok(Err(e)) => warn!(\"Watcher error: {:?}\", e),\n            Err(_) => {\n                if let Some(last_time) = last_event_time {\n                    if last_time.elapsed() >= debounce_duration {\n                        process_stabilized_events(config, dry_run, ai);\n                        last_event_time = None;\n                    }\n                }\n            }\n        }\n    }\n}"
+    },
+    {
+      "id": "../Panos/src/organizer/watcher.rs::fn::should_ignore::3853",
+      "label": "should_ignore()",
+      "group": "functions",
+      "val": 8,
+      "code": "pub fn should_ignore(event: &Event, config: &Config, wp: &WatcherPaths) -> bool {\n    // If all paths in the event match ignore criteria, then we ignore the whole event.\n    // If even one path is \"valid\" (should be organized), we return false to trigger organize.\n    event.paths.iter().all(|path| {\n        let abs_path = std::fs::canonicalize(path).unwrap_or(path.to_path_buf());\n\n        // 1. Ignore source directory itself\n        if abs_path == wp.abs_source {\n            return true;\n        }\n\n        // 2. Ignore internal managed directories (trash, unknown, history)\n        if abs_path.starts_with(&wp.abs_trash)\n            || abs_path.starts_with(&wp.abs_unknown)\n            || abs_path == wp.abs_history\n        {\n            return true;\n        }\n\n        // 3. Ignore hidden files and user-defined ignore patterns\n        if let Some(name) = abs_path.file_name().and_then(|n| n.to_str()) {\n            if config.ignore_patterns.iter().any(|p| name == *p) {\n                return true;\n            }\n            if config.exclude_hidden && name.starts_with('.') {\n                return true;\n            }\n        }\n\n        // 4. Ignore destination paths (to prevent trigger recursion when moving files)\n        for dest_path in &wp.abs_destinations {\n            if abs_path.starts_with(dest_path) {\n                return true;\n            }\n        }\n\n        false\n    })\n}"
+    },
+    {
+      "id": "../Panos/src/organizer/watcher.rs::fn::process_stabilized_events::5255",
+      "label": "process_stabilized_events()",
+      "group": "functions",
+      "val": 8,
+      "code": "fn process_stabilized_events(config: &Config, dry_run: bool, ai: &mut Option<PanosAI>) {\n    info!(\"🚀 Change detected and stabilized. Running organization...\");\n\n    let reporter = NoopReporter;\n\n    // Set lock before starting\n    IS_ORGANIZING.store(true, Ordering::SeqCst);\n\n    match organize(config, dry_run, &reporter, ai) {\n        Ok(history) if !history.is_empty() => {\n            let mut session =\n                Session::load(&config.source_dir, &config.history_file).unwrap_or_default();\n\n            session.moves.extend(history);\n\n            if let Err(e) = session.save(&config.source_dir, &config.history_file) {\n                error!(\"Failed to save history: {}\", e);\n            }\n            info!(\"History updated in watch mode.\");\n\n            // Clean up empty directories\n            if let Err(e) =\n                remove_empty_dirs(&config.source_dir, dry_run, &session.moves, &reporter)\n            {\n                error!(\"Failed to clean up empty directories: {}\", e);\n            }\n        }\n        Err(e) => error!(\"Organization failed during watch mode: {:?}\", e),\n        _ => {}\n    }\n\n    // Release lock after finishing\n    IS_ORGANIZING.store(false, Ordering::SeqCst);\n}"
+    },
+    {
+      "id": "../Panos/src/organizer/undo.rs",
+      "label": "undo.rs",
+      "group": "organizer",
+      "val": 20,
+      "code": "//! Undo logic with file history\n\nuse anyhow::{Context, Result};\nuse rayon::prelude::*;\nuse tracing::{info, warn};\n\nuse crate::check_integrity;\nuse crate::config::Config;\nuse crate::file_ops::{Session, move_file};\nuse crate::ui::reporter::ProgressReporter;\n\npub fn run_undo(config: &Config, dry_run: bool, reporter: &dyn ProgressReporter) -> Result<()> {\n    // 1. Load history log\n    let session = Session::load(&config.source_dir, &config.history_file)\n        .context(\"Failed to load history log\")?;\n\n    if session.moves.is_empty() {\n        info!(\"No recent moves found to undo.\");\n        let history_path = config.source_dir.join(&config.history_file);\n        if !dry_run {\n            if history_path.exists() {\n                std::fs::remove_file(history_path)?;\n            }\n        }\n        return Ok(());\n    }\n\n    if dry_run {\n        info!(\n            \"[DRY RUN] Would undo {} file movements...\",\n            session.moves.len()\n        );\n    } else {\n        info!(\"Undoing {} file movements...\", session.moves.len());\n    }\n\n    reporter.start(\n        Some(session.moves.len() as u64),\n        \"Undoing file movements...\".to_string(),\n    );\n\n    let results: Vec<Result<()>> = session\n        .moves\n        .iter()\n        .rev()\n        .par_bridge()\n        .map(|record| {\n            reporter.update(\n                1,\n                format!(\"Undoing: {:?} -> {:?}\", record.destination, record.source),\n            );\n            if record.destination.exists() {\n                if dry_run {\n                    info!(\n                        \"[DRY RUN] Would restore: {:?} -> {:?}\",\n                        record.destination, record.source\n                    );\n                }\n\n                if !dry_run {\n                    move_file(&record.destination, &record.source, dry_run)?;\n                }\n            } else {\n                warn!(\n                    \"Could not find file at {:?}, skipping...\",\n                    record.destination\n                );\n            }\n            Ok(())\n        })\n        .collect();\n\n    // Check for any errors in parallel execution\n    for res in results {\n        res?;\n    }\n\n    let mut undo_history = session.moves.clone();\n    for m in &mut undo_history {\n        std::mem::swap(&mut m.source, &mut m.destination);\n    }\n    check_integrity(&undo_history, dry_run, reporter)?;\n\n    // 3. After Undo is completed, delete the history file to prevent duplication\n    let history_path = config.source_dir.join(&config.history_file);\n    if !dry_run {\n        std::fs::remove_file(history_path)?;\n    }\n\n    reporter.finish(\"Undo operation completed.\".to_string());\n\n    info!(\"Undo operation completed.\");\n    Ok(())\n}\n"
+    },
+    {
+      "id": "../Panos/src/organizer/undo.rs::use::use anyhow::{Context, Result};",
+      "label": "anyhow::{Context, Result}",
+      "group": "imports",
+      "val": 5,
+      "code": "use anyhow::{Context, Result};"
+    },
+    {
+      "id": "../Panos/src/organizer/undo.rs::use::use rayon::prelude::*;",
+      "label": "rayon::prelude::*",
+      "group": "imports",
+      "val": 5,
+      "code": "use rayon::prelude::*;"
+    },
+    {
+      "id": "../Panos/src/organizer/undo.rs::use::use tracing::{info, warn};",
+      "label": "tracing::{info, warn}",
+      "group": "imports",
+      "val": 5,
+      "code": "use tracing::{info, warn};"
+    },
+    {
+      "id": "../Panos/src/organizer/undo.rs::use::use crate::check_integrity;",
+      "label": "crate::check_integrity",
+      "group": "imports",
+      "val": 5,
+      "code": "use crate::check_integrity;"
+    },
+    {
+      "id": "../Panos/src/organizer/undo.rs::use::use crate::config::Config;",
+      "label": "crate::config::Config",
+      "group": "imports",
+      "val": 5,
+      "code": "use crate::config::Config;"
+    },
+    {
+      "id": "../Panos/src/organizer/undo.rs::use::use crate::file_ops::{Session, move_file};",
+      "label": "crate::file_ops::{Session, move_file}",
+      "group": "imports",
+      "val": 5,
+      "code": "use crate::file_ops::{Session, move_file};"
+    },
+    {
+      "id": "../Panos/src/organizer/undo.rs::use::use crate::ui::reporter::ProgressReporter;",
+      "label": "crate::ui::reporter::ProgressReporter",
+      "group": "imports",
+      "val": 5,
+      "code": "use crate::ui::reporter::ProgressReporter;"
+    },
+    {
+      "id": "../Panos/src/organizer/undo.rs::fn::run_undo::258",
+      "label": "run_undo()",
+      "group": "functions",
+      "val": 8,
+      "code": "pub fn run_undo(config: &Config, dry_run: bool, reporter: &dyn ProgressReporter) -> Result<()> {\n    // 1. Load history log\n    let session = Session::load(&config.source_dir, &config.history_file)\n        .context(\"Failed to load history log\")?;\n\n    if session.moves.is_empty() {\n        info!(\"No recent moves found to undo.\");\n        let history_path = config.source_dir.join(&config.history_file);\n        if !dry_run {\n            if history_path.exists() {\n                std::fs::remove_file(history_path)?;\n            }\n        }\n        return Ok(());\n    }\n\n    if dry_run {\n        info!(\n            \"[DRY RUN] Would undo {} file movements...\",\n            session.moves.len()\n        );\n    } else {\n        info!(\"Undoing {} file movements...\", session.moves.len());\n    }\n\n    reporter.start(\n        Some(session.moves.len() as u64),\n        \"Undoing file movements...\".to_string(),\n    );\n\n    let results: Vec<Result<()>> = session\n        .moves\n        .iter()\n        .rev()\n        .par_bridge()\n        .map(|record| {\n            reporter.update(\n                1,\n                format!(\"Undoing: {:?} -> {:?}\", record.destination, record.source),\n            );\n            if record.destination.exists() {\n                if dry_run {\n                    info!(\n                        \"[DRY RUN] Would restore: {:?} -> {:?}\",\n                        record.destination, record.source\n                    );\n                }\n\n                if !dry_run {\n                    move_file(&record.destination, &record.source, dry_run)?;\n                }\n            } else {\n                warn!(\n                    \"Could not find file at {:?}, skipping...\",\n                    record.destination\n                );\n            }\n            Ok(())\n        })\n        .collect();\n\n    // Check for any errors in parallel execution\n    for res in results {\n        res?;\n    }\n\n    let mut undo_history = session.moves.clone();\n    for m in &mut undo_history {\n        std::mem::swap(&mut m.source, &mut m.destination);\n    }\n    check_integrity(&undo_history, dry_run, reporter)?;\n\n    // 3. After Undo is completed, delete the history file to prevent duplication\n    let history_path = config.source_dir.join(&config.history_file);\n    if !dry_run {\n        std::fs::remove_file(history_path)?;\n    }\n\n    reporter.finish(\"Undo operation completed.\".to_string());\n\n    info!(\"Undo operation completed.\");\n    Ok(())\n}"
+    },
+    {
+      "id": "../Panos/src/file_ops/mover.rs",
+      "label": "mover.rs",
+      "group": "file_ops",
+      "val": 20,
+      "code": "//! File moving and handling operations\n\nuse anyhow::Result;\nuse chrono::Utc;\nuse tracing::info;\n\nuse crate::file_ops::get_file_size;\nuse crate::file_ops::history::MoveRecord;\n\n/// Move a file to destination with conflict resolution\npub fn move_file(\n    src_path: &std::path::Path,\n    dest_path: &std::path::Path,\n    dry_run: bool,\n) -> Result<Option<MoveRecord>> {\n    // Check if source and destination are the same\n    if src_path == dest_path {\n        return Ok(None);\n    }\n\n    let file_size = get_file_size(src_path)?;\n\n    let mut final_dest = dest_path.to_path_buf();\n\n    // Create parent directory if it doesn't exist\n    if !dry_run {\n        if let Some(parent) = final_dest.parent() {\n            std::fs::create_dir_all(parent)?;\n        }\n    }\n\n    // Handle conflict\n    if final_dest.exists() && src_path != final_dest {\n        let filename = src_path\n            .file_name()\n            .and_then(|s| s.to_str())\n            .ok_or_else(|| anyhow::anyhow!(\"Invalid source filename\"))?;\n\n        let (stem, extension) = match filename.rfind('.') {\n            Some(i) if i > 0 && i < filename.len() - 1 => (&filename[..i], &filename[i + 1..]),\n            _ => (filename, \"\"),\n        };\n\n        let mut count: i32 = 1;\n        while final_dest.exists() {\n            let new_name: String = if extension.is_empty() {\n                format!(\"{}_{}\", stem, count)\n            } else {\n                format!(\"{}_{}.{}\", stem, count, extension)\n            };\n            final_dest = final_dest.with_file_name(new_name);\n            count += 1;\n        }\n    }\n\n    if dry_run {\n        info!(\"[DRY RUN] Would move {:?} to {:?}\", src_path, final_dest);\n    } else {\n        info!(\"Moving {:?} to {:?}\", src_path, final_dest);\n        if let Err(e) = std::fs::rename(src_path, &final_dest) {\n            if e.kind() == std::io::ErrorKind::CrossesDevices {\n                std::fs::copy(src_path, &final_dest)?;\n                std::fs::remove_file(src_path)?;\n            } else {\n                return Err(e.into());\n            }\n        }\n    }\n\n    Ok(Some(MoveRecord {\n        source: src_path.to_path_buf(),\n        destination: final_dest,\n        timestamp: Utc::now(),\n        file_size: file_size,\n    }))\n}\n"
+    },
+    {
+      "id": "../Panos/src/file_ops/mover.rs::use::use anyhow::Result;",
+      "label": "anyhow::Result",
+      "group": "imports",
+      "val": 5,
+      "code": "use anyhow::Result;"
+    },
+    {
+      "id": "../Panos/src/file_ops/mover.rs::use::use chrono::Utc;",
+      "label": "chrono::Utc",
+      "group": "imports",
+      "val": 5,
+      "code": "use chrono::Utc;"
+    },
+    {
+      "id": "../Panos/src/file_ops/mover.rs::use::use tracing::info;",
+      "label": "tracing::info",
+      "group": "imports",
+      "val": 5,
+      "code": "use tracing::info;"
+    },
+    {
+      "id": "../Panos/src/file_ops/mover.rs::use::use crate::file_ops::get_file_size;",
+      "label": "crate::file_ops::get_file_size",
+      "group": "imports",
+      "val": 5,
+      "code": "use crate::file_ops::get_file_size;"
+    },
+    {
+      "id": "../Panos/src/file_ops/mover.rs::use::use crate::file_ops::history::MoveRecord;",
+      "label": "crate::file_ops::history::MoveRecord",
+      "group": "imports",
+      "val": 5,
+      "code": "use crate::file_ops::history::MoveRecord;"
+    },
+    {
+      "id": "../Panos/src/file_ops/mover.rs::fn::move_file::233",
+      "label": "move_file()",
+      "group": "functions",
+      "val": 8,
+      "code": "pub fn move_file(\n    src_path: &std::path::Path,\n    dest_path: &std::path::Path,\n    dry_run: bool,\n) -> Result<Option<MoveRecord>> {\n    // Check if source and destination are the same\n    if src_path == dest_path {\n        return Ok(None);\n    }\n\n    let file_size = get_file_size(src_path)?;\n\n    let mut final_dest = dest_path.to_path_buf();\n\n    // Create parent directory if it doesn't exist\n    if !dry_run {\n        if let Some(parent) = final_dest.parent() {\n            std::fs::create_dir_all(parent)?;\n        }\n    }\n\n    // Handle conflict\n    if final_dest.exists() && src_path != final_dest {\n        let filename = src_path\n            .file_name()\n            .and_then(|s| s.to_str())\n            .ok_or_else(|| anyhow::anyhow!(\"Invalid source filename\"))?;\n\n        let (stem, extension) = match filename.rfind('.') {\n            Some(i) if i > 0 && i < filename.len() - 1 => (&filename[..i], &filename[i + 1..]),\n            _ => (filename, \"\"),\n        };\n\n        let mut count: i32 = 1;\n        while final_dest.exists() {\n            let new_name: String = if extension.is_empty() {\n                format!(\"{}_{}\", stem, count)\n            } else {\n                format!(\"{}_{}.{}\", stem, count, extension)\n            };\n            final_dest = final_dest.with_file_name(new_name);\n            count += 1;\n        }\n    }\n\n    if dry_run {\n        info!(\"[DRY RUN] Would move {:?} to {:?}\", src_path, final_dest);\n    } else {\n        info!(\"Moving {:?} to {:?}\", src_path, final_dest);\n        if let Err(e) = std::fs::rename(src_path, &final_dest) {\n            if e.kind() == std::io::ErrorKind::CrossesDevices {\n                std::fs::copy(src_path, &final_dest)?;\n                std::fs::remove_file(src_path)?;\n            } else {\n                return Err(e.into());\n            }\n        }\n    }\n\n    Ok(Some(MoveRecord {\n        source: src_path.to_path_buf(),\n        destination: final_dest,\n        timestamp: Utc::now(),\n        file_size: file_size,\n    }))\n}"
+    },
+    {
+      "id": "../Panos/src/file_ops/integrity.rs",
+      "label": "integrity.rs",
+      "group": "file_ops",
+      "val": 20,
+      "code": "//! File integrity check operations\n\nuse anyhow::Result;\nuse rayon::prelude::*;\nuse std::fs;\nuse tracing::info;\n\nuse crate::file_ops::history::MoveRecord;\nuse crate::ui::ProgressReporter;\n\npub struct IntegrityReport {\n    pub total_checked: usize,\n    pub successful: usize,\n    pub failures: Vec<(String, String)>, // (Path, Error Message)\n}\n\npub fn check_integrity(\n    history: &[MoveRecord],\n    dry_run: bool,\n    reporter: &dyn ProgressReporter,\n) -> Result<()> {\n    if !history.is_empty() {\n        let report = verify_moves(&history, dry_run, &*reporter)?;\n\n        info!(\"\\n🛡 Integrity Check:\");\n        info!(\"  Checked: {} files\", report.total_checked);\n        info!(\"  Successful: {}\", report.successful);\n\n        if !report.failures.is_empty() {\n            info!(\"  ⚠️ FAILURES detected:\");\n            for (path, err) in report.failures {\n                info!(\"    - {}: {}\", path, err);\n            }\n        } else {\n            info!(\"  ✅ All files verified successfully!\");\n        }\n    }\n\n    Ok(())\n}\n\nfn verify_moves(\n    history: &[MoveRecord],\n    dry_run: bool,\n    reporter: &dyn ProgressReporter,\n) -> Result<IntegrityReport> {\n    if history.is_empty() {\n        return Ok(IntegrityReport {\n            total_checked: 0,\n            successful: 0,\n            failures: vec![],\n        });\n    }\n\n    if dry_run {\n        info!(\n            \"[DRY RUN] Would check integrity of {} files...\",\n            history.len()\n        );\n        return Ok(IntegrityReport {\n            total_checked: history.len(),\n            successful: history.len(),\n            failures: vec![],\n        });\n    }\n\n    reporter.start(\n        Some(history.len() as u64),\n        \"Checking integrity...\".to_string(),\n    );\n\n    let results: Vec<Option<(String, String)>> = history\n        .par_iter()\n        .map(|record| {\n            let result = if !record.destination.exists() {\n                Some((\n                    record.destination.to_string_lossy().to_string(),\n                    \"Missing at destination\".to_string(),\n                ))\n            } else {\n                match fs::metadata(&record.destination) {\n                    Ok(meta) => {\n                        if meta.len() != record.file_size {\n                            Some((\n                                record.destination.to_string_lossy().to_string(),\n                                format!(\n                                    \"Size mismatch: expected {}, found {}\",\n                                    record.file_size,\n                                    meta.len()\n                                ),\n                            ))\n                        } else {\n                            None\n                        }\n                    }\n                    Err(e) => Some((\n                        record.destination.to_string_lossy().to_string(),\n                        format!(\"Metadata error: {}\", e),\n                    )),\n                }\n            };\n            reporter.update(1, \"\".to_string());\n            result\n        })\n        .collect();\n\n    let failures: Vec<(String, String)> = results.into_iter().flatten().collect();\n    let successful = history.len() - failures.len();\n\n    reporter.finish(\"Integrity check complete!\".to_string());\n\n    Ok(IntegrityReport {\n        total_checked: history.len(),\n        successful,\n        failures,\n    })\n}\n"
+    },
+    {
+      "id": "../Panos/src/file_ops/integrity.rs::use::use anyhow::Result;",
+      "label": "anyhow::Result",
+      "group": "imports",
+      "val": 5,
+      "code": "use anyhow::Result;"
+    },
+    {
+      "id": "../Panos/src/file_ops/integrity.rs::use::use rayon::prelude::*;",
+      "label": "rayon::prelude::*",
+      "group": "imports",
+      "val": 5,
+      "code": "use rayon::prelude::*;"
+    },
+    {
+      "id": "../Panos/src/file_ops/integrity.rs::use::use tracing::info;",
+      "label": "tracing::info",
+      "group": "imports",
+      "val": 5,
+      "code": "use tracing::info;"
+    },
+    {
+      "id": "../Panos/src/file_ops/integrity.rs::use::use crate::file_ops::history::MoveRecord;",
+      "label": "crate::file_ops::history::MoveRecord",
+      "group": "imports",
+      "val": 5,
+      "code": "use crate::file_ops::history::MoveRecord;"
+    },
+    {
+      "id": "../Panos/src/file_ops/integrity.rs::use::use crate::ui::ProgressReporter;",
+      "label": "crate::ui::ProgressReporter",
+      "group": "imports",
+      "val": 5,
+      "code": "use crate::ui::ProgressReporter;"
+    },
+    {
+      "id": "../Panos/src/file_ops/integrity.rs::struct::IntegrityReport",
+      "label": "IntegrityReport",
+      "group": "structs",
+      "val": 12,
+      "code": "pub struct IntegrityReport {\n    pub total_checked: usize,\n    pub successful: usize,\n    pub failures: Vec<(String, String)>, // (Path, Error Message)\n}"
+    },
+    {
+      "id": "../Panos/src/file_ops/integrity.rs::fn::check_integrity::344",
+      "label": "check_integrity()",
+      "group": "functions",
+      "val": 8,
+      "code": "pub fn check_integrity(\n    history: &[MoveRecord],\n    dry_run: bool,\n    reporter: &dyn ProgressReporter,\n) -> Result<()> {\n    if !history.is_empty() {\n        let report = verify_moves(&history, dry_run, &*reporter)?;\n\n        info!(\"\\n🛡 Integrity Check:\");\n        info!(\"  Checked: {} files\", report.total_checked);\n        info!(\"  Successful: {}\", report.successful);\n\n        if !report.failures.is_empty() {\n            info!(\"  ⚠️ FAILURES detected:\");\n            for (path, err) in report.failures {\n                info!(\"    - {}: {}\", path, err);\n            }\n        } else {\n            info!(\"  ✅ All files verified successfully!\");\n        }\n    }\n\n    Ok(())\n}"
+    },
+    {
+      "id": "../Panos/src/file_ops/integrity.rs::fn::verify_moves::1037",
+      "label": "verify_moves()",
+      "group": "functions",
+      "val": 8,
+      "code": "fn verify_moves(\n    history: &[MoveRecord],\n    dry_run: bool,\n    reporter: &dyn ProgressReporter,\n) -> Result<IntegrityReport> {\n    if history.is_empty() {\n        return Ok(IntegrityReport {\n            total_checked: 0,\n            successful: 0,\n            failures: vec![],\n        });\n    }\n\n    if dry_run {\n        info!(\n            \"[DRY RUN] Would check integrity of {} files...\",\n            history.len()\n        );\n        return Ok(IntegrityReport {\n            total_checked: history.len(),\n            successful: history.len(),\n            failures: vec![],\n        });\n    }\n\n    reporter.start(\n        Some(history.len() as u64),\n        \"Checking integrity...\".to_string(),\n    );\n\n    let results: Vec<Option<(String, String)>> = history\n        .par_iter()\n        .map(|record| {\n            let result = if !record.destination.exists() {\n                Some((\n                    record.destination.to_string_lossy().to_string(),\n                    \"Missing at destination\".to_string(),\n                ))\n            } else {\n                match fs::metadata(&record.destination) {\n                    Ok(meta) => {\n                        if meta.len() != record.file_size {\n                            Some((\n                                record.destination.to_string_lossy().to_string(),\n                                format!(\n                                    \"Size mismatch: expected {}, found {}\",\n                                    record.file_size,\n                                    meta.len()\n                                ),\n                            ))\n                        } else {\n                            None\n                        }\n                    }\n                    Err(e) => Some((\n                        record.destination.to_string_lossy().to_string(),\n                        format!(\"Metadata error: {}\", e),\n                    )),\n                }\n            };\n            reporter.update(1, \"\".to_string());\n            result\n        })\n        .collect();\n\n    let failures: Vec<(String, String)> = results.into_iter().flatten().collect();\n    let successful = history.len() - failures.len();\n\n    reporter.finish(\"Integrity check complete!\".to_string());\n\n    Ok(IntegrityReport {\n        total_checked: history.len(),\n        successful,\n        failures,\n    })\n}"
+    },
+    {
+      "id": "../Panos/src/file_ops/hashing.rs",
+      "label": "hashing.rs",
+      "group": "file_ops",
+      "val": 20,
+      "code": "//! Hashing module\n\nuse std::hash::Hasher;\nuse twox_hash::XxHash64;\nuse std::fs::{File, metadata};\nuse std::io::{Read, Result};\nuse std::path::Path;\n\npub fn get_file_size<P: AsRef<Path>>(path: P) -> Result<u64> {\n    Ok(metadata(path)?.len())\n}\n\npub fn calculate_partial_hash<P: AsRef<Path>>(path: P) -> Result<String> {\n    let mut file = File::open(path)?;\n    let mut buffer = [0u8; 4096]; // 4KB buffer for efficient reading\n    let n = file.read(&mut buffer)?;\n \n    let mut hasher = XxHash64::with_seed(0);\n    hasher.write(&buffer[..n]);\n \n    Ok(format!(\"{:016x}\", hasher.finish()))\n}\n\npub fn calculate_full_hash<P: AsRef<Path>>(path: P) -> Result<String> {\n    let mut file = File::open(path)?;\n    let mut hasher = XxHash64::with_seed(0);\n    let mut buffer = [0u8; 8192]; // 8KB buffer for efficient reading\n \n    loop {\n        let n = file.read(&mut buffer)?;\n        if n == 0 {\n            break;\n        }\n        hasher.write(&buffer[..n]);\n    }\n \n    Ok(format!(\"{:016x}\", hasher.finish()))\n}\n"
+    },
+    {
+      "id": "../Panos/src/file_ops/hashing.rs::use::use twox_hash::XxHash64;",
+      "label": "twox_hash::XxHash64",
+      "group": "imports",
+      "val": 5,
+      "code": "use twox_hash::XxHash64;"
+    },
+    {
+      "id": "../Panos/src/file_ops/hashing.rs::fn::get_file_size::150",
+      "label": "get_file_size()",
+      "group": "functions",
+      "val": 8,
+      "code": "pub fn get_file_size<P: AsRef<Path>>(path: P) -> Result<u64> {\n    Ok(metadata(path)?.len())\n}"
+    },
+    {
+      "id": "../Panos/src/file_ops/hashing.rs::fn::calculate_partial_hash::246",
+      "label": "calculate_partial_hash()",
+      "group": "functions",
+      "val": 8,
+      "code": "pub fn calculate_partial_hash<P: AsRef<Path>>(path: P) -> Result<String> {\n    let mut file = File::open(path)?;\n    let mut buffer = [0u8; 4096]; // 4KB buffer for efficient reading\n    let n = file.read(&mut buffer)?;\n \n    let mut hasher = XxHash64::with_seed(0);\n    hasher.write(&buffer[..n]);\n \n    Ok(format!(\"{:016x}\", hasher.finish()))\n}"
+    },
+    {
+      "id": "../Panos/src/file_ops/hashing.rs::fn::calculate_full_hash::594",
+      "label": "calculate_full_hash()",
+      "group": "functions",
+      "val": 8,
+      "code": "pub fn calculate_full_hash<P: AsRef<Path>>(path: P) -> Result<String> {\n    let mut file = File::open(path)?;\n    let mut hasher = XxHash64::with_seed(0);\n    let mut buffer = [0u8; 8192]; // 8KB buffer for efficient reading\n \n    loop {\n        let n = file.read(&mut buffer)?;\n        if n == 0 {\n            break;\n        }\n        hasher.write(&buffer[..n]);\n    }\n \n    Ok(format!(\"{:016x}\", hasher.finish()))\n}"
+    },
+    {
+      "id": "../Panos/src/file_ops/mod.rs",
+      "label": "mod.rs",
+      "group": "file_ops",
+      "val": 20,
+      "code": "//! File operations module\n\npub mod hashing;\npub mod history;\npub mod integrity;\npub mod mover;\npub mod remover;\n\npub use hashing::{calculate_full_hash, calculate_partial_hash, get_file_size};\npub use history::{MoveRecord, Session};\npub use integrity::check_integrity;\npub use mover::move_file;\npub use remover::remove_empty_dirs;\n"
+    },
+    {
+      "id": "../Panos/src/file_ops/mod.rs::use::pub use hashing::{calculate_full_hash, calculate_partial_hash, get_file_size};",
+      "label": "pub hashing::{calculate_full_hash, calculate_partial_hash, get_file_size}",
+      "group": "imports",
+      "val": 5,
+      "code": "pub use hashing::{calculate_full_hash, calculate_partial_hash, get_file_size};"
+    },
+    {
+      "id": "../Panos/src/file_ops/mod.rs::use::pub use history::{MoveRecord, Session};",
+      "label": "pub history::{MoveRecord, Session}",
+      "group": "imports",
+      "val": 5,
+      "code": "pub use history::{MoveRecord, Session};"
+    },
+    {
+      "id": "../Panos/src/file_ops/mod.rs::use::pub use integrity::check_integrity;",
+      "label": "pub integrity::check_integrity",
+      "group": "imports",
+      "val": 5,
+      "code": "pub use integrity::check_integrity;"
+    },
+    {
+      "id": "../Panos/src/file_ops/mod.rs::use::pub use mover::move_file;",
+      "label": "pub mover::move_file",
+      "group": "imports",
+      "val": 5,
+      "code": "pub use mover::move_file;"
+    },
+    {
+      "id": "../Panos/src/file_ops/mod.rs::use::pub use remover::remove_empty_dirs;",
+      "label": "pub remover::remove_empty_dirs",
+      "group": "imports",
+      "val": 5,
+      "code": "pub use remover::remove_empty_dirs;"
+    },
+    {
+      "id": "../Panos/src/file_ops/history.rs",
+      "label": "history.rs",
+      "group": "file_ops",
+      "val": 20,
+      "code": "//! History logic\n\nuse anyhow::Result;\nuse chrono::{DateTime, Utc};\nuse serde::{Deserialize, Serialize};\nuse std::path::{Path, PathBuf};\n\n#[derive(Debug, Serialize, Deserialize, Clone)]\npub struct MoveRecord {\n    pub source: PathBuf,\n    pub destination: PathBuf,\n    pub timestamp: DateTime<Utc>,\n    pub file_size: u64,\n}\n\n#[derive(Debug, Serialize, Deserialize, Default)]\npub struct Session {\n    pub moves: Vec<MoveRecord>,\n}\n\nimpl Session {\n    /// Save Session to JSON file\n    pub fn save(&self, source_dir: &Path, history_file: &str) -> Result<()> {\n        let history_path = source_dir.join(history_file);\n        let content = serde_json::to_string_pretty(self)?;\n        std::fs::write(history_path, content)?;\n        Ok(())\n    }\n\n    /// Load Session from JSON file\n    pub fn load(source_dir: &Path, history_file: &str) -> Result<Self> {\n        let history_path = source_dir.join(history_file);\n        if !history_path.exists() {\n            return Ok(Session::default());\n        }\n        let content = std::fs::read_to_string(history_path)?;\n        let session = serde_json::from_str(&content)?;\n        Ok(session)\n    }\n}\n"
+    },
+    {
+      "id": "../Panos/src/file_ops/history.rs::use::use anyhow::Result;",
+      "label": "anyhow::Result",
+      "group": "imports",
+      "val": 5,
+      "code": "use anyhow::Result;"
+    },
+    {
+      "id": "../Panos/src/file_ops/history.rs::use::use chrono::{DateTime, Utc};",
+      "label": "chrono::{DateTime, Utc}",
+      "group": "imports",
+      "val": 5,
+      "code": "use chrono::{DateTime, Utc};"
+    },
+    {
+      "id": "../Panos/src/file_ops/history.rs::struct::MoveRecord",
+      "label": "MoveRecord",
+      "group": "structs",
+      "val": 12,
+      "code": "pub struct MoveRecord {\n    pub source: PathBuf,\n    pub destination: PathBuf,\n    pub timestamp: DateTime<Utc>,\n    pub file_size: u64,\n}"
+    },
+    {
+      "id": "../Panos/src/file_ops/history.rs::struct::Session",
+      "label": "Session",
+      "group": "structs",
+      "val": 12,
+      "code": "pub struct Session {\n    pub moves: Vec<MoveRecord>,\n}"
+    },
+    {
+      "id": "../Panos/src/file_ops/history.rs::fn::save::485",
+      "label": "save()",
+      "group": "functions",
+      "val": 8,
+      "code": "pub fn save(&self, source_dir: &Path, history_file: &str) -> Result<()> {\n        let history_path = source_dir.join(history_file);\n        let content = serde_json::to_string_pretty(self)?;\n        std::fs::write(history_path, content)?;\n        Ok(())\n    }"
+    },
+    {
+      "id": "../Panos/src/file_ops/history.rs::fn::load::786",
+      "label": "load()",
+      "group": "functions",
+      "val": 8,
+      "code": "pub fn load(source_dir: &Path, history_file: &str) -> Result<Self> {\n        let history_path = source_dir.join(history_file);\n        if !history_path.exists() {\n            return Ok(Session::default());\n        }\n        let content = std::fs::read_to_string(history_path)?;\n        let session = serde_json::from_str(&content)?;\n        Ok(session)\n    }"
+    },
+    {
+      "id": "../Panos/src/file_ops/remover.rs",
+      "label": "remover.rs",
+      "group": "file_ops",
+      "val": 20,
+      "code": "//! Empty directory removing and handling operations\n\nuse anyhow::Result;\nuse std::collections::HashSet;\nuse std::path::{Path, PathBuf};\nuse tracing::info;\nuse walkdir::WalkDir;\n\nuse crate::file_ops::MoveRecord;\nuse crate::ui::ProgressReporter;\n\npub fn remove_empty_dirs(\n    root: &std::path::Path,\n    dry_run: bool,\n    predicted_move: &[MoveRecord],\n    reporter: &dyn ProgressReporter,\n) -> Result<()> {\n    // Map source paths to a HashSet for O(1) lookups\n    let move_sources: HashSet<_> = predicted_move.iter().map(|m| m.source.clone()).collect();\n\n    // Track directories that WOULD be empty in dry_run mode\n    let mut would_be_empty_dirs = HashSet::new();\n\n    reporter.start(None, \"Cleaning up empty directories...\".to_string());\n\n    for entry in WalkDir::new(root)\n        .contents_first(true)\n        .into_iter()\n        .filter_map(|e| e.ok())\n    {\n        if !entry.file_type().is_dir() || entry.path() == root {\n            continue;\n        }\n\n        let path = entry.path();\n\n        let is_empty: bool = if !dry_run {\n            // Actual check for real execution\n            is_actually_empty(path)\n        } else {\n            // Predictive check for dry run\n            predict_directory_empty(path, &move_sources, &would_be_empty_dirs)\n        };\n\n        if is_empty {\n            reporter.update(\n                0,\n                format!(\n                    \"Found empty directory: {:?}\",\n                    path.file_name().unwrap_or_default()\n                ),\n            );\n            if dry_run {\n                info!(\"[DRY RUN] Would remove empty directory: {:?}\", path);\n                would_be_empty_dirs.insert(path.to_path_buf());\n            } else {\n                info!(\"Removing empty directory: {:?}\", path);\n                std::fs::remove_dir(path)?;\n            }\n        }\n    }\n    reporter.finish(\"Empty directories removed.\".to_string());\n    Ok(())\n}\n\nfn is_actually_empty(path: &Path) -> bool {\n    match std::fs::read_dir(path) {\n        Ok(mut entries) => entries.next().is_none(),\n        Err(e) => {\n            tracing::error!(\"Could not read directory {:?}: {}\", path, e);\n            false\n        }\n    }\n}\n\nfn predict_directory_empty(\n    path: &Path,\n    move_sources: &HashSet<PathBuf>,\n    would_be_empty_dirs: &HashSet<PathBuf>,\n) -> bool {\n    match std::fs::read_dir(path) {\n        Ok(entries) => {\n            let mut all_will_be_gone = true;\n            for entry in entries.filter_map(|e| e.ok()) {\n                let p = entry.path();\n\n                if p.is_dir() {\n                    if !would_be_empty_dirs.contains(&p) {\n                        all_will_be_gone = false;\n                        break;\n                    }\n                } else if p.is_file() {\n                    if !move_sources.contains(&p) {\n                        all_will_be_gone = false;\n                        break;\n                    }\n                } else {\n                    // Other file types (symlinks, etc.) are not moved, so directory won't be empty\n                    all_will_be_gone = false;\n                    break;\n                }\n            }\n            all_will_be_gone\n        }\n        Err(e) => {\n            tracing::error!(\"Could not read directory {:?}: {}\", path, e);\n            false\n        }\n    }\n}\n"
+    },
+    {
+      "id": "../Panos/src/file_ops/remover.rs::use::use anyhow::Result;",
+      "label": "anyhow::Result",
+      "group": "imports",
+      "val": 5,
+      "code": "use anyhow::Result;"
+    },
+    {
+      "id": "../Panos/src/file_ops/remover.rs::use::use tracing::info;",
+      "label": "tracing::info",
+      "group": "imports",
+      "val": 5,
+      "code": "use tracing::info;"
+    },
+    {
+      "id": "../Panos/src/file_ops/remover.rs::use::use crate::file_ops::MoveRecord;",
+      "label": "crate::file_ops::MoveRecord",
+      "group": "imports",
+      "val": 5,
+      "code": "use crate::file_ops::MoveRecord;"
+    },
+    {
+      "id": "../Panos/src/file_ops/remover.rs::use::use crate::ui::ProgressReporter;",
+      "label": "crate::ui::ProgressReporter",
+      "group": "imports",
+      "val": 5,
+      "code": "use crate::ui::ProgressReporter;"
+    },
+    {
+      "id": "../Panos/src/file_ops/remover.rs::fn::remove_empty_dirs::246",
+      "label": "remove_empty_dirs()",
+      "group": "functions",
+      "val": 8,
+      "code": "pub fn remove_empty_dirs(\n    root: &std::path::Path,\n    dry_run: bool,\n    predicted_move: &[MoveRecord],\n    reporter: &dyn ProgressReporter,\n) -> Result<()> {\n    // Map source paths to a HashSet for O(1) lookups\n    let move_sources: HashSet<_> = predicted_move.iter().map(|m| m.source.clone()).collect();\n\n    // Track directories that WOULD be empty in dry_run mode\n    let mut would_be_empty_dirs = HashSet::new();\n\n    reporter.start(None, \"Cleaning up empty directories...\".to_string());\n\n    for entry in WalkDir::new(root)\n        .contents_first(true)\n        .into_iter()\n        .filter_map(|e| e.ok())\n    {\n        if !entry.file_type().is_dir() || entry.path() == root {\n            continue;\n        }\n\n        let path = entry.path();\n\n        let is_empty: bool = if !dry_run {\n            // Actual check for real execution\n            is_actually_empty(path)\n        } else {\n            // Predictive check for dry run\n            predict_directory_empty(path, &move_sources, &would_be_empty_dirs)\n        };\n\n        if is_empty {\n            reporter.update(\n                0,\n                format!(\n                    \"Found empty directory: {:?}\",\n                    path.file_name().unwrap_or_default()\n                ),\n            );\n            if dry_run {\n                info!(\"[DRY RUN] Would remove empty directory: {:?}\", path);\n                would_be_empty_dirs.insert(path.to_path_buf());\n            } else {\n                info!(\"Removing empty directory: {:?}\", path);\n                std::fs::remove_dir(path)?;\n            }\n        }\n    }\n    reporter.finish(\"Empty directories removed.\".to_string());\n    Ok(())\n}"
+    },
+    {
+      "id": "../Panos/src/file_ops/remover.rs::fn::is_actually_empty::1918",
+      "label": "is_actually_empty()",
+      "group": "functions",
+      "val": 8,
+      "code": "fn is_actually_empty(path: &Path) -> bool {\n    match std::fs::read_dir(path) {\n        Ok(mut entries) => entries.next().is_none(),\n        Err(e) => {\n            tracing::error!(\"Could not read directory {:?}: {}\", path, e);\n            false\n        }\n    }\n}"
+    },
+    {
+      "id": "../Panos/src/file_ops/remover.rs::fn::predict_directory_empty::2183",
+      "label": "predict_directory_empty()",
+      "group": "functions",
+      "val": 8,
+      "code": "fn predict_directory_empty(\n    path: &Path,\n    move_sources: &HashSet<PathBuf>,\n    would_be_empty_dirs: &HashSet<PathBuf>,\n) -> bool {\n    match std::fs::read_dir(path) {\n        Ok(entries) => {\n            let mut all_will_be_gone = true;\n            for entry in entries.filter_map(|e| e.ok()) {\n                let p = entry.path();\n\n                if p.is_dir() {\n                    if !would_be_empty_dirs.contains(&p) {\n                        all_will_be_gone = false;\n                        break;\n                    }\n                } else if p.is_file() {\n                    if !move_sources.contains(&p) {\n                        all_will_be_gone = false;\n                        break;\n                    }\n                } else {\n                    // Other file types (symlinks, etc.) are not moved, so directory won't be empty\n                    all_will_be_gone = false;\n                    break;\n                }\n            }\n            all_will_be_gone\n        }\n        Err(e) => {\n            tracing::error!(\"Could not read directory {:?}: {}\", path, e);\n            false\n        }\n    }\n}"
+    },
+    {
+      "id": "../Panos/src/cli/mod.rs",
+      "label": "mod.rs",
+      "group": "cli",
+      "val": 20,
+      "code": "//! Command Line Interface module\n\npub mod args;\n\npub use args::Args;\n"
+    },
+    {
+      "id": "../Panos/src/cli/mod.rs::use::pub use args::Args;",
+      "label": "pub args::Args",
+      "group": "imports",
+      "val": 5,
+      "code": "pub use args::Args;"
+    },
+    {
+      "id": "../Panos/src/cli/args.rs",
+      "label": "args.rs",
+      "group": "cli",
+      "val": 20,
+      "code": "//! Command line arguments parsing\n\nuse clap::Parser;\nuse std::path::PathBuf;\n\n#[derive(Parser, Debug)]\n#[command(author, version, about)]\n#[command(help_template = \"\\\n{before-help}\nname: {name}\ndescription: {about}\nversion: {version}\nauthor: {author-with-newline}\n{usage-heading} {usage}\n\n{all-args}\n{after-help}\n\")]\n// #[command(arg_required_else_help = true)]\npub struct Args {\n    /// Path to the configuration file (panos.toml)\n    #[arg(short, long, default_value = \"panos.toml\")]\n    pub config: PathBuf,\n\n    /// Override the source directory to organize\n    #[arg(short, long)]\n    pub source: Option<PathBuf>,\n\n    /// Run without moving files (only show what would happen)\n    #[arg(short, long)]\n    pub dry_run: bool,\n\n    /// Run in watch mode (background daemon)\n    #[arg(short, long)]\n    pub watch: bool,\n\n    /// Run undo mode (restore last session)\n    #[arg(short, long)]\n    pub undo: bool,\n}\n"
+    },
+    {
+      "id": "../Panos/src/cli/args.rs::use::use clap::Parser;",
+      "label": "clap::Parser",
+      "group": "imports",
+      "val": 5,
+      "code": "use clap::Parser;"
+    },
+    {
+      "id": "../Panos/src/cli/args.rs::struct::Args",
+      "label": "Args",
+      "group": "structs",
+      "val": 12,
+      "code": "pub struct Args {\n    /// Path to the configuration file (panos.toml)\n    #[arg(short, long, default_value = \"panos.toml\")]\n    pub config: PathBuf,\n\n    /// Override the source directory to organize\n    #[arg(short, long)]\n    pub source: Option<PathBuf>,\n\n    /// Run without moving files (only show what would happen)\n    #[arg(short, long)]\n    pub dry_run: bool,\n\n    /// Run in watch mode (background daemon)\n    #[arg(short, long)]\n    pub watch: bool,\n\n    /// Run undo mode (restore last session)\n    #[arg(short, long)]\n    pub undo: bool,\n}"
+    },
+    {
+      "id": "../Panos/src/rules/ai.rs",
+      "label": "ai.rs",
+      "group": "rules",
+      "val": 20,
+      "code": "//! # AI Module\n\nuse ort::{session::Session as OrtSession, value::Tensor};\nuse std::collections::HashMap;\nuse std::path::Path;\nuse tokenizers::Tokenizer;\n\nuse crate::config::{Config, Rule};\n\npub struct PanosAI {\n    tokenizer: Tokenizer,\n    session: OrtSession,\n    pub cache: HashMap<String, Vec<f32>>,\n}\n\nimpl PanosAI {\n    pub fn new(model_dir: &str, rules: &[Rule]) -> anyhow::Result<Self> {\n        let tokenizer_path = format!(\"{}/tokenizer.json\", model_dir);\n        let model_path = format!(\"{}/model.onnx\", model_dir);\n\n        let tokenizer = Tokenizer::from_file(tokenizer_path)\n            .map_err(|e| anyhow::anyhow!(\"Failed to load tokenizer: {}\", e))?;\n\n        let session = OrtSession::builder()?.commit_from_file(model_path)?;\n\n        let mut ai = Self {\n            tokenizer,\n            session,\n            cache: HashMap::new(),\n        };\n\n        let mut cache = HashMap::new();\n        for rule in rules {\n            if let Some(label) = &rule.semantic_label {\n                if let Ok(mut embedding) = ai.get_embedding(label) {\n                    Self::normalize(&mut embedding);\n                    cache.insert(label.clone(), embedding);\n                }\n            }\n        }\n\n        ai.cache = cache;\n        Ok(ai)\n    }\n\n    fn normalize(v: &mut [f32]) {\n        let norm = v.iter().map(|x| x * x).sum::<f32>().sqrt();\n        if norm > f32::EPSILON {\n            for x in v.iter_mut() {\n                *x /= norm;\n            }\n        }\n    }\n\n    fn tokenize(&self, text: &str) -> anyhow::Result<(Vec<i64>, Vec<i64>, usize)> {\n        let encoding = self\n            .tokenizer\n            .encode(text, true)\n            .map_err(|e| anyhow::anyhow!(\"Tokenization failed: {}\", e))?;\n\n        let ids: Vec<i64> = encoding.get_ids().iter().map(|&x| x as i64).collect();\n        let mask: Vec<i64> = encoding\n            .get_attention_mask()\n            .iter()\n            .map(|&x| x as i64)\n            .collect();\n        let seq_len = ids.len();\n\n        Ok((ids, mask, seq_len))\n    }\n\n    pub fn get_embedding(&mut self, text: &str) -> anyhow::Result<Vec<f32>> {\n        let (ids, mask, seq_len) = self.tokenize(text)?;\n\n        let ids_tensor = Tensor::<i64>::from_array(([1usize, seq_len], ids))?;\n        let mask_tensor = Tensor::<i64>::from_array(([1usize, seq_len], mask))?;\n        let type_ids = vec![0i64; seq_len];\n        let type_ids_tensor = Tensor::<i64>::from_array(([1usize, seq_len], type_ids))?;\n\n        let outputs = self.session.run(ort::inputs![\n            \"input_ids\" => ids_tensor,\n            \"attention_mask\" => mask_tensor,\n            \"token_type_ids\" => type_ids_tensor,\n        ])?;\n\n        let (shape, data) = outputs[\"last_hidden_state\"].try_extract_tensor::<f32>()?;\n\n        let hidden_size = shape[2] as usize;\n        let token_count = shape[1] as usize;\n\n        let mut embedding = vec![0.0f32; hidden_size];\n        for token_idx in 0..token_count {\n            for dim_idx in 0..hidden_size {\n                embedding[dim_idx] += data[token_idx * hidden_size + dim_idx];\n            }\n        }\n\n        let count = token_count as f32;\n        if count > 0.0 {\n            for val in &mut embedding {\n                *val /= count;\n            }\n        }\n\n        Ok(embedding)\n    }\n\n    pub fn cosine_similarity(&self, v1: &[f32], v2: &[f32]) -> f32 {\n        let mut v1_norm = v1.to_vec();\n        Self::normalize(&mut v1_norm);\n\n        v1_norm.iter().zip(v2.iter()).map(|(a, b)| a * b).sum()\n    }\n\n    pub fn determine_rule<'a>(\n        &mut self,\n        file_name: &str,\n        config: &Config,\n        rules: &'a [Rule],\n    ) -> Option<&'a Rule> {\n        let cleaned_name = Path::new(file_name)\n            .file_stem()\n            .and_then(|s| s.to_str())\n            .unwrap_or(file_name)\n            .replace('_', \" \")\n            .replace('-', \" \");\n\n        let bge_query = format!(\"query: {}\", cleaned_name);\n        let file_emb = self.get_embedding(&bge_query).ok()?;\n\n        for rule in rules {\n            if let Some(label) = &rule.semantic_label {\n                if let Some(label_emb) = self.cache.get(label) {\n                    let score = self.cosine_similarity(&file_emb, label_emb);\n\n                    if score >= config.ai_threshold {\n                        return Some(rule);\n                    }\n                }\n            }\n        }\n\n        None\n    }\n}\n"
+    },
+    {
+      "id": "../Panos/src/rules/ai.rs::use::use ort::{session::Session as OrtSession, value::Tensor};",
+      "label": "ort::{session::Session as OrtSession, value::Tensor}",
+      "group": "imports",
+      "val": 5,
+      "code": "use ort::{session::Session as OrtSession, value::Tensor};"
+    },
+    {
+      "id": "../Panos/src/rules/ai.rs::use::use tokenizers::Tokenizer;",
+      "label": "tokenizers::Tokenizer",
+      "group": "imports",
+      "val": 5,
+      "code": "use tokenizers::Tokenizer;"
+    },
+    {
+      "id": "../Panos/src/rules/ai.rs::use::use crate::config::{Config, Rule};",
+      "label": "crate::config::{Config, Rule}",
+      "group": "imports",
+      "val": 5,
+      "code": "use crate::config::{Config, Rule};"
+    },
+    {
+      "id": "../Panos/src/rules/ai.rs::struct::PanosAI",
+      "label": "PanosAI",
+      "group": "structs",
+      "val": 12,
+      "code": "pub struct PanosAI {\n    tokenizer: Tokenizer,\n    session: OrtSession,\n    pub cache: HashMap<String, Vec<f32>>,\n}"
+    },
+    {
+      "id": "../Panos/src/rules/ai.rs::fn::new::327",
+      "label": "new()",
+      "group": "functions",
+      "val": 8,
+      "code": "pub fn new(model_dir: &str, rules: &[Rule]) -> anyhow::Result<Self> {\n        let tokenizer_path = format!(\"{}/tokenizer.json\", model_dir);\n        let model_path = format!(\"{}/model.onnx\", model_dir);\n\n        let tokenizer = Tokenizer::from_file(tokenizer_path)\n            .map_err(|e| anyhow::anyhow!(\"Failed to load tokenizer: {}\", e))?;\n\n        let session = OrtSession::builder()?.commit_from_file(model_path)?;\n\n        let mut ai = Self {\n            tokenizer,\n            session,\n            cache: HashMap::new(),\n        };\n\n        let mut cache = HashMap::new();\n        for rule in rules {\n            if let Some(label) = &rule.semantic_label {\n                if let Ok(mut embedding) = ai.get_embedding(label) {\n                    Self::normalize(&mut embedding);\n                    cache.insert(label.clone(), embedding);\n                }\n            }\n        }\n\n        ai.cache = cache;\n        Ok(ai)\n    }"
+    },
+    {
+      "id": "../Panos/src/rules/ai.rs::fn::normalize::1268",
+      "label": "normalize()",
+      "group": "functions",
+      "val": 8,
+      "code": "fn normalize(v: &mut [f32]) {\n        let norm = v.iter().map(|x| x * x).sum::<f32>().sqrt();\n        if norm > f32::EPSILON {\n            for x in v.iter_mut() {\n                *x /= norm;\n            }\n        }\n    }"
+    },
+    {
+      "id": "../Panos/src/rules/ai.rs::fn::tokenize::1494",
+      "label": "tokenize()",
+      "group": "functions",
+      "val": 8,
+      "code": "fn tokenize(&self, text: &str) -> anyhow::Result<(Vec<i64>, Vec<i64>, usize)> {\n        let encoding = self\n            .tokenizer\n            .encode(text, true)\n            .map_err(|e| anyhow::anyhow!(\"Tokenization failed: {}\", e))?;\n\n        let ids: Vec<i64> = encoding.get_ids().iter().map(|&x| x as i64).collect();\n        let mask: Vec<i64> = encoding\n            .get_attention_mask()\n            .iter()\n            .map(|&x| x as i64)\n            .collect();\n        let seq_len = ids.len();\n\n        Ok((ids, mask, seq_len))\n    }"
+    },
+    {
+      "id": "../Panos/src/rules/ai.rs::fn::get_embedding::2042",
+      "label": "get_embedding()",
+      "group": "functions",
+      "val": 8,
+      "code": "pub fn get_embedding(&mut self, text: &str) -> anyhow::Result<Vec<f32>> {\n        let (ids, mask, seq_len) = self.tokenize(text)?;\n\n        let ids_tensor = Tensor::<i64>::from_array(([1usize, seq_len], ids))?;\n        let mask_tensor = Tensor::<i64>::from_array(([1usize, seq_len], mask))?;\n        let type_ids = vec![0i64; seq_len];\n        let type_ids_tensor = Tensor::<i64>::from_array(([1usize, seq_len], type_ids))?;\n\n        let outputs = self.session.run(ort::inputs![\n            \"input_ids\" => ids_tensor,\n            \"attention_mask\" => mask_tensor,\n            \"token_type_ids\" => type_ids_tensor,\n        ])?;\n\n        let (shape, data) = outputs[\"last_hidden_state\"].try_extract_tensor::<f32>()?;\n\n        let hidden_size = shape[2] as usize;\n        let token_count = shape[1] as usize;\n\n        let mut embedding = vec![0.0f32; hidden_size];\n        for token_idx in 0..token_count {\n            for dim_idx in 0..hidden_size {\n                embedding[dim_idx] += data[token_idx * hidden_size + dim_idx];\n            }\n        }\n\n        let count = token_count as f32;\n        if count > 0.0 {\n            for val in &mut embedding {\n                *val /= count;\n            }\n        }\n\n        Ok(embedding)\n    }"
+    },
+    {
+      "id": "../Panos/src/rules/ai.rs::fn::cosine_similarity::3286",
+      "label": "cosine_similarity()",
+      "group": "functions",
+      "val": 8,
+      "code": "pub fn cosine_similarity(&self, v1: &[f32], v2: &[f32]) -> f32 {\n        let mut v1_norm = v1.to_vec();\n        Self::normalize(&mut v1_norm);\n\n        v1_norm.iter().zip(v2.iter()).map(|(a, b)| a * b).sum()\n    }"
+    },
+    {
+      "id": "../Panos/src/rules/ai.rs::fn::determine_rule::3505",
+      "label": "determine_rule()",
+      "group": "functions",
+      "val": 8,
+      "code": "pub fn determine_rule<'a>(\n        &mut self,\n        file_name: &str,\n        config: &Config,\n        rules: &'a [Rule],\n    ) -> Option<&'a Rule> {\n        let cleaned_name = Path::new(file_name)\n            .file_stem()\n            .and_then(|s| s.to_str())\n            .unwrap_or(file_name)\n            .replace('_', \" \")\n            .replace('-', \" \");\n\n        let bge_query = format!(\"query: {}\", cleaned_name);\n        let file_emb = self.get_embedding(&bge_query).ok()?;\n\n        for rule in rules {\n            if let Some(label) = &rule.semantic_label {\n                if let Some(label_emb) = self.cache.get(label) {\n                    let score = self.cosine_similarity(&file_emb, label_emb);\n\n                    if score >= config.ai_threshold {\n                        return Some(rule);\n                    }\n                }\n            }\n        }\n\n        None\n    }"
+    },
+    {
+      "id": "../Panos/src/rules/matcher.rs",
+      "label": "matcher.rs",
+      "group": "rules",
+      "val": 20,
+      "code": "//! Rule matching logic\n\nuse crate::config::Rule;\nuse std::path::Path;\n\n/// Find the first rule that matches the given file\npub fn find_rule_for_file<'a>(path: &std::path::Path, rules: &'a [Rule]) -> Option<&'a Rule> {\n    let filename: String = path.file_name()?.to_str()?.to_lowercase();\n\n    let mut extension = path\n        .extension()\n        .and_then(|e| e.to_str())\n        .map(|s| s.to_lowercase())\n        .unwrap_or_default();\n\n    // Check hidden file with name matching the extension (e.g., .tmp -> tmp)\n    if extension.is_empty() && filename.starts_with('.') && filename.len() > 1 {\n        extension = filename[1..].to_string();\n    }\n\n    rules\n        .iter()\n        .find(|rule| rule.matches(&filename, &extension))\n}\n\n/// Check if file is a temporary file\npub fn is_temp_file(path: &Path, temp_extensions: &[String]) -> bool {\n    // 1. Check standard extension (e.g., data.tmp)\n    if let Some(ext) = path.extension().and_then(|e| e.to_str()) {\n        if temp_extensions.contains(&ext.to_lowercase()) {\n            return true;\n        }\n    }\n\n    // 2. Check hidden file with name matching the extension (e.g., .tmp -> tmp)\n    if let Some(filename) = path.file_name().and_then(|n| n.to_str()) {\n        if filename.starts_with('.') && filename.len() > 1 {\n            let name_after_dot = &filename[1..].to_lowercase();\n            if temp_extensions.contains(name_after_dot) {\n                return true;\n            }\n        }\n    }\n\n    false\n}\n"
+    },
+    {
+      "id": "../Panos/src/rules/matcher.rs::use::use crate::config::Rule;",
+      "label": "crate::config::Rule",
+      "group": "imports",
+      "val": 5,
+      "code": "use crate::config::Rule;"
+    },
+    {
+      "id": "../Panos/src/rules/matcher.rs::fn::find_rule_for_file::124",
+      "label": "find_rule_for_file()",
+      "group": "functions",
+      "val": 8,
+      "code": "pub fn find_rule_for_file<'a>(path: &std::path::Path, rules: &'a [Rule]) -> Option<&'a Rule> {\n    let filename: String = path.file_name()?.to_str()?.to_lowercase();\n\n    let mut extension = path\n        .extension()\n        .and_then(|e| e.to_str())\n        .map(|s| s.to_lowercase())\n        .unwrap_or_default();\n\n    // Check hidden file with name matching the extension (e.g., .tmp -> tmp)\n    if extension.is_empty() && filename.starts_with('.') && filename.len() > 1 {\n        extension = filename[1..].to_string();\n    }\n\n    rules\n        .iter()\n        .find(|rule| rule.matches(&filename, &extension))\n}"
+    },
+    {
+      "id": "../Panos/src/rules/matcher.rs::fn::is_temp_file::779",
+      "label": "is_temp_file()",
+      "group": "functions",
+      "val": 8,
+      "code": "pub fn is_temp_file(path: &Path, temp_extensions: &[String]) -> bool {\n    // 1. Check standard extension (e.g., data.tmp)\n    if let Some(ext) = path.extension().and_then(|e| e.to_str()) {\n        if temp_extensions.contains(&ext.to_lowercase()) {\n            return true;\n        }\n    }\n\n    // 2. Check hidden file with name matching the extension (e.g., .tmp -> tmp)\n    if let Some(filename) = path.file_name().and_then(|n| n.to_str()) {\n        if filename.starts_with('.') && filename.len() > 1 {\n            let name_after_dot = &filename[1..].to_lowercase();\n            if temp_extensions.contains(name_after_dot) {\n                return true;\n            }\n        }\n    }\n\n    false\n}"
+    },
+    {
+      "id": "../Panos/src/rules/mod.rs",
+      "label": "mod.rs",
+      "group": "rules",
+      "val": 20,
+      "code": "//! Rule matching and file classification module\n\npub mod ai;\npub mod matcher;\n\npub use ai::PanosAI;\npub use matcher::{find_rule_for_file, is_temp_file};\n"
+    },
+    {
+      "id": "../Panos/src/rules/mod.rs::use::pub use ai::PanosAI;",
+      "label": "pub ai::PanosAI",
+      "group": "imports",
+      "val": 5,
+      "code": "pub use ai::PanosAI;"
+    },
+    {
+      "id": "../Panos/src/rules/mod.rs::use::pub use matcher::{find_rule_for_file, is_temp_file};",
+      "label": "pub matcher::{find_rule_for_file, is_temp_file}",
+      "group": "imports",
+      "val": 5,
+      "code": "pub use matcher::{find_rule_for_file, is_temp_file};"
+    },
+    {
+      "id": "../Panos/src/main.rs",
       "label": "main.rs",
       "group": "src",
-      "val": 20
+      "val": 20,
+      "code": "//! PANOS: Universal File Organizer OS\n\nuse anyhow::Result;\nuse clap::Parser;\nuse tracing::info;\nuse tracing_subscriber::{EnvFilter, FmtSubscriber};\n\nuse panos::{\n    Args, Config,\n    file_ops::{MoveRecord, Session, check_integrity, remove_empty_dirs},\n    organizer::{organize, run_undo, watch_mode},\n    rules::PanosAI,\n    ui::IndicatifReporter,\n};\n\nfn main() -> Result<()> {\n    let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(\"off\"));\n\n    let subscriber = FmtSubscriber::builder().with_env_filter(filter).finish();\n\n    tracing::subscriber::set_global_default(subscriber)?;\n\n    let reporter = IndicatifReporter::new();\n\n    let args: Args = Args::parse();\n\n    info!(\"Starting PANOS...\");\n    info!(\"Config file: {:?}\", args.config);\n\n    // Load config\n    let mut config = Config::load(&args.config)?;\n\n    let mut ai_engine = if config.ai_enabled {\n        Some(PanosAI::new(\n            config.model_dir.to_str().ok_or(anyhow::anyhow!(\n                \"Failed to convert model directory to string\"\n            ))?,\n            &config.rules,\n        )?)\n    } else {\n        None\n    };\n\n    // CLI override for source directory\n    if let Some(source) = args.source {\n        config.source_dir = source;\n    }\n    info!(\"Source directory: {:?}\", config.source_dir);\n\n    if args.dry_run {\n        info!(\"Dry run mode enabled. Files will not be moved.\");\n    }\n\n    // Undo operation\n    if args.undo {\n        run_undo(&config, args.dry_run, &reporter)?;\n        remove_empty_dirs(&config.source_dir, args.dry_run, &[], &reporter)?;\n        return Ok(());\n    }\n\n    let history: Vec<MoveRecord> = organize(&config, args.dry_run, &reporter, &mut ai_engine)?;\n\n    check_integrity(&history, args.dry_run, &reporter)?;\n\n    if !args.dry_run && !history.is_empty() {\n        let mut session = Session::load(&config.source_dir, &config.history_file)?;\n        session.moves.extend(history.clone());\n        session.save(&config.source_dir, &config.history_file)?;\n        info!(\"History saved. You can undo this operation with --undo\");\n    }\n\n    remove_empty_dirs(&config.source_dir, args.dry_run, &history, &reporter)?;\n\n    if args.watch {\n        watch_mode(&config, args.dry_run, &mut ai_engine)?;\n    }\n\n    info!(\"PANOS completed successfully.\");\n\n    Ok(())\n}\n"
     },
     {
-      "id": "./src/main.rs::use::use models::GraphData;",
-      "label": "models::GraphData",
+      "id": "../Panos/src/main.rs::use::use anyhow::Result;",
+      "label": "anyhow::Result",
       "group": "imports",
       "val": 5,
-      "code": "use models::GraphData;"
+      "code": "use anyhow::Result;"
     },
     {
-      "id": "./src/main.rs::fn::main",
+      "id": "../Panos/src/main.rs::use::use clap::Parser;",
+      "label": "clap::Parser",
+      "group": "imports",
+      "val": 5,
+      "code": "use clap::Parser;"
+    },
+    {
+      "id": "../Panos/src/main.rs::use::use tracing::info;",
+      "label": "tracing::info",
+      "group": "imports",
+      "val": 5,
+      "code": "use tracing::info;"
+    },
+    {
+      "id": "../Panos/src/main.rs::use::use tracing_subscriber::{EnvFilter, FmtSubscriber};",
+      "label": "tracing_subscriber::{EnvFilter, FmtSubscriber}",
+      "group": "imports",
+      "val": 5,
+      "code": "use tracing_subscriber::{EnvFilter, FmtSubscriber};"
+    },
+    {
+      "id": "../Panos/src/main.rs::use::use panos::{\n    Args, Config,\n    file_ops::{MoveRecord, Session, check_integrity, remove_empty_dirs},\n    organizer::{organize, run_undo, watch_mode},\n    rules::PanosAI,\n    ui::IndicatifReporter,\n};",
+      "label": "panos::{\n    Args, Config,\n    file_ops::{MoveRecord, Session, check_integrity, remove_empty_dirs},\n    organizer::{organize, run_undo, watch_mode},\n    rules::PanosAI,\n    ui::IndicatifReporter,\n}",
+      "group": "imports",
+      "val": 5,
+      "code": "use panos::{\n    Args, Config,\n    file_ops::{MoveRecord, Session, check_integrity, remove_empty_dirs},\n    organizer::{organize, run_undo, watch_mode},\n    rules::PanosAI,\n    ui::IndicatifReporter,\n};"
+    },
+    {
+      "id": "../Panos/src/main.rs::fn::main::354",
       "label": "main()",
-      "group": "src",
+      "group": "functions",
       "val": 8,
-      "code": "fn main() {\n    let args: Vec<String> = env::args().collect();\n    let target_dir = if args.len() > 1 { &args[1] } else { \".\" };\n\n    println!(\"Scanning directory: {}\", target_dir);\n\n    let mut nodes = Vec::new();\n    let mut links = Vec::new();\n\n    let files = scanner::find_rust_files(target_dir);\n\n    for file in files {\n        parser::parse_rust_file(&file, &mut nodes, &mut links);\n    }\n\n    let graph = GraphData { nodes, links };\n\n    if let Ok(json) = serde_json::to_string_pretty(&graph) {\n        let output_path = \"../ui/public/data.json\";\n        match fs::write(output_path, json) {\n            Ok(_) => println!(\"Successfully saved graph data to {}\", output_path),\n            Err(e) => eprintln!(\"Error saving graph data: {}\", e),\n        }\n    }\n}"
-    },
-    {
-      "id": "./src/parser.rs",
-      "label": "parser.rs",
-      "group": "src",
-      "val": 20
-    },
-    {
-      "id": "./src/parser.rs::use::use crate::models::{Link, Node};",
-      "label": "crate::models::{Link, Node}",
-      "group": "imports",
-      "val": 5,
-      "code": "use crate::models::{Link, Node};"
-    },
-    {
-      "id": "./src/parser.rs::fn::parse_rust_file",
-      "label": "parse_rust_file()",
-      "group": "src",
-      "val": 8,
-      "code": "pub fn parse_rust_file(path: &Path, nodes: &mut Vec<Node>, links: &mut Vec<Link>) {\n    let full_path = path.to_string_lossy().into_owned();\n    let file_name = path.file_name().unwrap().to_string_lossy().into_owned();\n    let group = path.parent()\n        .and_then(|p| p.file_name())\n        .map(|n| n.to_string_lossy().into_owned())\n        .unwrap_or_else(|| \"root\".to_string());\n\n    // สร้างโหนดสำหรับไฟล์\n    nodes.push(Node {\n        id: full_path.clone(),\n        label: file_name,\n        group: group.clone(),\n        val: 20,\n        code: None,\n    });\n\n    if let Ok(source_code) = fs::read_to_string(path) {\n        let mut parser = Parser::new();\n        let language = tree_sitter_rust::LANGUAGE.into();\n        parser.set_language(&language).expect(\"Error loading Rust grammar\");\n\n        let query_code = \"\n            (function_item) @func\n            (struct_item) @struct\n            (impl_item type: (type_identifier) @impl.name)\n            (use_declaration) @use\n        \";\n        let query = Query::new(&language, query_code).expect(\"Error creating query\");\n\n        let tree = parser.parse(&source_code, None).unwrap();\n        let mut cursor = QueryCursor::new();\n        let mut captures = cursor.captures(&query, tree.root_node(), source_code.as_bytes());\n\n        while let Some((m, _)) = captures.next() {\n            for capture in m.captures {\n                let node = capture.node;\n                let full_content = &source_code[node.start_byte()..node.end_byte()];\n                let capture_name = query.capture_names()[capture.index as usize];\n\n                match capture_name {\n                    \"func\" => {\n                        if let Some(name_node) = node.child_by_field_name(\"name\") {\n                            let name = &source_code[name_node.start_byte()..name_node.end_byte()];\n                            let id = format!(\"{}::fn::{}\", full_path, name);\n                            nodes.push(Node {\n                                id: id.clone(),\n                                label: format!(\"{}()\", name),\n                                group: group.clone(),\n                                val: 8,\n                                code: Some(full_content.to_string()),\n                            });\n                            links.push(Link {\n                                source: full_path.clone(),\n                                target: id,\n                                link_type: \"contains\".to_string(),\n                            });\n                        }\n                    },\n                    \"struct\" => {\n                        if let Some(name_node) = node.child_by_field_name(\"name\") {\n                            let name = &source_code[name_node.start_byte()..name_node.end_byte()];\n                            let id = format!(\"{}::struct::{}\", full_path, name);\n                            nodes.push(Node {\n                                id: id.clone(),\n                                label: name.to_string(),\n                                group: \"structs\".to_string(),\n                                val: 12,\n                                code: Some(full_content.to_string()),\n                            });\n                            links.push(Link {\n                                source: full_path.clone(),\n                                target: id,\n                                link_type: \"contains\".to_string(),\n                            });\n                        }\n                    },\n                    \"impl.name\" => {\n                        let struct_id = format!(\"{}::struct::{}\", full_path, full_content);\n                        links.push(Link {\n                            source: full_path.clone(),\n                            target: struct_id,\n                            link_type: \"implements\".to_string(),\n                        });\n                    },\n                    \"use\" => {\n                        if !full_content.contains(\"std::\") && \n                           !full_content.contains(\"serde\") && \n                           !full_content.contains(\"tree_sitter\") && \n                           !full_content.contains(\"walkdir\") {\n                            let id = format!(\"{}::use::{}\", full_path, full_content);\n                            nodes.push(Node {\n                                id: id.clone(),\n                                label: full_content.replace(\"use \", \"\").replace(\";\", \"\"),\n                                group: \"imports\".to_string(),\n                                val: 5,\n                                code: Some(full_content.to_string()),\n                            });\n                            links.push(Link {\n                                source: full_path.clone(),\n                                target: id,\n                                link_type: \"imports\".to_string(),\n                            });\n                        }\n                    },\n                    _ => {}\n                }\n            }\n        }\n    }\n}"
+      "code": "fn main() -> Result<()> {\n    let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(\"off\"));\n\n    let subscriber = FmtSubscriber::builder().with_env_filter(filter).finish();\n\n    tracing::subscriber::set_global_default(subscriber)?;\n\n    let reporter = IndicatifReporter::new();\n\n    let args: Args = Args::parse();\n\n    info!(\"Starting PANOS...\");\n    info!(\"Config file: {:?}\", args.config);\n\n    // Load config\n    let mut config = Config::load(&args.config)?;\n\n    let mut ai_engine = if config.ai_enabled {\n        Some(PanosAI::new(\n            config.model_dir.to_str().ok_or(anyhow::anyhow!(\n                \"Failed to convert model directory to string\"\n            ))?,\n            &config.rules,\n        )?)\n    } else {\n        None\n    };\n\n    // CLI override for source directory\n    if let Some(source) = args.source {\n        config.source_dir = source;\n    }\n    info!(\"Source directory: {:?}\", config.source_dir);\n\n    if args.dry_run {\n        info!(\"Dry run mode enabled. Files will not be moved.\");\n    }\n\n    // Undo operation\n    if args.undo {\n        run_undo(&config, args.dry_run, &reporter)?;\n        remove_empty_dirs(&config.source_dir, args.dry_run, &[], &reporter)?;\n        return Ok(());\n    }\n\n    let history: Vec<MoveRecord> = organize(&config, args.dry_run, &reporter, &mut ai_engine)?;\n\n    check_integrity(&history, args.dry_run, &reporter)?;\n\n    if !args.dry_run && !history.is_empty() {\n        let mut session = Session::load(&config.source_dir, &config.history_file)?;\n        session.moves.extend(history.clone());\n        session.save(&config.source_dir, &config.history_file)?;\n        info!(\"History saved. You can undo this operation with --undo\");\n    }\n\n    remove_empty_dirs(&config.source_dir, args.dry_run, &history, &reporter)?;\n\n    if args.watch {\n        watch_mode(&config, args.dry_run, &mut ai_engine)?;\n    }\n\n    info!(\"PANOS completed successfully.\");\n\n    Ok(())\n}"
     }
   ],
   "links": [
     {
-      "source": "./src/models.rs",
-      "target": "./src/models.rs::struct::Node",
-      "type": "contains"
-    },
-    {
-      "source": "./src/models.rs",
-      "target": "./src/models.rs::struct::Link",
-      "type": "contains"
-    },
-    {
-      "source": "./src/models.rs",
-      "target": "./src/models.rs::struct::GraphData",
-      "type": "contains"
-    },
-    {
-      "source": "./src/scanner.rs",
-      "target": "./src/scanner.rs::fn::find_rust_files",
-      "type": "contains"
-    },
-    {
-      "source": "./src/main.rs",
-      "target": "./src/main.rs::use::use models::GraphData;",
+      "source": "../Panos/src/ui/reporter.rs",
+      "target": "../Panos/src/ui/reporter.rs::use::use indicatif::{ProgressBar, ProgressStyle};",
       "type": "imports"
     },
     {
-      "source": "./src/main.rs",
-      "target": "./src/main.rs::fn::main",
+      "source": "../Panos/src/ui/reporter.rs",
+      "target": "../Panos/src/ui/reporter.rs::trait::ProgressReporter::97",
       "type": "contains"
     },
     {
-      "source": "./src/parser.rs",
-      "target": "./src/parser.rs::use::use crate::models::{Link, Node};",
+      "source": "../Panos/src/ui/reporter.rs",
+      "target": "../Panos/src/ui/reporter.rs::struct::NoopReporter",
+      "type": "contains"
+    },
+    {
+      "source": "../Panos/src/ui/reporter.rs",
+      "target": "../Panos/src/ui/reporter.rs::struct::NoopReporter",
+      "type": "implements"
+    },
+    {
+      "source": "../Panos/src/ui/reporter.rs",
+      "target": "../Panos/src/ui/reporter.rs::fn::start::363",
+      "type": "contains"
+    },
+    {
+      "source": "../Panos/src/ui/reporter.rs",
+      "target": "../Panos/src/ui/reporter.rs::fn::update::425",
+      "type": "contains"
+    },
+    {
+      "source": "../Panos/src/ui/reporter.rs",
+      "target": "../Panos/src/ui/reporter.rs::fn::finish::480",
+      "type": "contains"
+    },
+    {
+      "source": "../Panos/src/ui/reporter.rs",
+      "target": "../Panos/src/ui/reporter.rs::struct::IndicatifReporter",
+      "type": "contains"
+    },
+    {
+      "source": "../Panos/src/ui/reporter.rs",
+      "target": "../Panos/src/ui/reporter.rs::struct::IndicatifReporter",
+      "type": "implements"
+    },
+    {
+      "source": "../Panos/src/ui/reporter.rs",
+      "target": "../Panos/src/ui/reporter.rs::fn::new::620",
+      "type": "contains"
+    },
+    {
+      "source": "../Panos/src/ui/reporter.rs",
+      "target": "../Panos/src/ui/reporter.rs::struct::IndicatifReporter",
+      "type": "implements"
+    },
+    {
+      "source": "../Panos/src/ui/reporter.rs",
+      "target": "../Panos/src/ui/reporter.rs::fn::start::761",
+      "type": "contains"
+    },
+    {
+      "source": "../Panos/src/ui/reporter.rs",
+      "target": "../Panos/src/ui/reporter.rs::fn::update::1634",
+      "type": "contains"
+    },
+    {
+      "source": "../Panos/src/ui/reporter.rs",
+      "target": "../Panos/src/ui/reporter.rs::fn::finish::2002",
+      "type": "contains"
+    },
+    {
+      "source": "../Panos/src/ui/mod.rs",
+      "target": "../Panos/src/ui/reporter.rs",
+      "type": "declares_module"
+    },
+    {
+      "source": "../Panos/src/ui/mod.rs",
+      "target": "../Panos/src/ui/mod.rs::use::pub use reporter::{IndicatifReporter, NoopReporter, ProgressReporter};",
       "type": "imports"
     },
     {
-      "source": "./src/parser.rs",
-      "target": "./src/parser.rs::fn::parse_rust_file",
+      "source": "../Panos/src/config/mod.rs",
+      "target": "../Panos/src/config/loader.rs",
+      "type": "declares_module"
+    },
+    {
+      "source": "../Panos/src/config/mod.rs",
+      "target": "../Panos/src/config/mod.rs::use::pub use loader::{Config, Rule};",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/config/loader.rs",
+      "target": "../Panos/src/config/loader.rs::use::use anyhow::Result;",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/config/loader.rs",
+      "target": "../Panos/src/config/loader.rs::struct::Rule",
+      "type": "contains"
+    },
+    {
+      "source": "../Panos/src/config/loader.rs",
+      "target": "../Panos/src/config/loader.rs::struct::Rule",
+      "type": "implements"
+    },
+    {
+      "source": "../Panos/src/config/loader.rs",
+      "target": "../Panos/src/config/loader.rs::fn::default::456",
+      "type": "contains"
+    },
+    {
+      "source": "../Panos/src/config/loader.rs",
+      "target": "../Panos/src/config/loader.rs::struct::Rule",
+      "type": "implements"
+    },
+    {
+      "source": "../Panos/src/config/loader.rs",
+      "target": "../Panos/src/config/loader.rs::fn::matches::727",
+      "type": "contains"
+    },
+    {
+      "source": "../Panos/src/config/loader.rs",
+      "target": "../Panos/src/config/loader.rs::fn::sanitize::1148",
+      "type": "contains"
+    },
+    {
+      "source": "../Panos/src/config/loader.rs",
+      "target": "../Panos/src/config/loader.rs::struct::Config",
+      "type": "contains"
+    },
+    {
+      "source": "../Panos/src/config/loader.rs",
+      "target": "../Panos/src/config/loader.rs::struct::Config",
+      "type": "implements"
+    },
+    {
+      "source": "../Panos/src/config/loader.rs",
+      "target": "../Panos/src/config/loader.rs::fn::default::2733",
+      "type": "contains"
+    },
+    {
+      "source": "../Panos/src/config/loader.rs",
+      "target": "../Panos/src/config/loader.rs::struct::Config",
+      "type": "implements"
+    },
+    {
+      "source": "../Panos/src/config/loader.rs",
+      "target": "../Panos/src/config/loader.rs::fn::load::3437",
+      "type": "contains"
+    },
+    {
+      "source": "../Panos/src/config/loader.rs",
+      "target": "../Panos/src/config/loader.rs::fn::sanitize::3871",
+      "type": "contains"
+    },
+    {
+      "source": "../Panos/src/lib.rs",
+      "target": "../Panos/src/cli/mod.rs",
+      "type": "declares_module"
+    },
+    {
+      "source": "../Panos/src/lib.rs",
+      "target": "../Panos/src/config/mod.rs",
+      "type": "declares_module"
+    },
+    {
+      "source": "../Panos/src/lib.rs",
+      "target": "../Panos/src/file_ops/mod.rs",
+      "type": "declares_module"
+    },
+    {
+      "source": "../Panos/src/lib.rs",
+      "target": "../Panos/src/organizer/mod.rs",
+      "type": "declares_module"
+    },
+    {
+      "source": "../Panos/src/lib.rs",
+      "target": "../Panos/src/rules/mod.rs",
+      "type": "declares_module"
+    },
+    {
+      "source": "../Panos/src/lib.rs",
+      "target": "../Panos/src/ui/mod.rs",
+      "type": "declares_module"
+    },
+    {
+      "source": "../Panos/src/lib.rs",
+      "target": "../Panos/src/lib.rs::use::pub use cli::Args;",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/lib.rs",
+      "target": "../Panos/src/lib.rs::use::pub use config::{Config, Rule};",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/lib.rs",
+      "target": "../Panos/src/lib.rs::use::pub use file_ops::{check_integrity, move_file, remove_empty_dirs};",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/lib.rs",
+      "target": "../Panos/src/lib.rs::use::pub use organizer::{organize, run_undo, watch_mode, watcher::{WatcherPaths, should_ignore}};",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/lib.rs",
+      "target": "../Panos/src/lib.rs::use::pub use rules::{PanosAI, find_rule_for_file, is_temp_file};",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/lib.rs",
+      "target": "../Panos/src/lib.rs::use::pub use ui::{IndicatifReporter, NoopReporter, ProgressReporter};",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/organizer/scanner.rs",
+      "target": "../Panos/src/organizer/scanner.rs::use::use anyhow::Result;",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/organizer/scanner.rs",
+      "target": "../Panos/src/organizer/scanner.rs::use::use rayon::prelude::*;",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/organizer/scanner.rs",
+      "target": "../Panos/src/organizer/scanner.rs::use::use tracing::info;",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/organizer/scanner.rs",
+      "target": "../Panos/src/organizer/scanner.rs::use::use crate::config::Config;",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/organizer/scanner.rs",
+      "target": "../Panos/src/organizer/scanner.rs::use::use crate::file_ops::hashing::*;",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/organizer/scanner.rs",
+      "target": "../Panos/src/organizer/scanner.rs::use::use crate::file_ops::history::MoveRecord;",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/organizer/scanner.rs",
+      "target": "../Panos/src/organizer/scanner.rs::use::use crate::file_ops::move_file;",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/organizer/scanner.rs",
+      "target": "../Panos/src/organizer/scanner.rs::use::use crate::rules::ai::PanosAI;",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/organizer/scanner.rs",
+      "target": "../Panos/src/organizer/scanner.rs::use::use crate::rules::{find_rule_for_file, is_temp_file};",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/organizer/scanner.rs",
+      "target": "../Panos/src/organizer/scanner.rs::use::use crate::ui::ProgressReporter;",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/organizer/scanner.rs",
+      "target": "../Panos/src/organizer/scanner.rs::fn::organize::502",
+      "type": "contains"
+    },
+    {
+      "source": "../Panos/src/organizer/scanner.rs",
+      "target": "../Panos/src/organizer/scanner.rs::fn::identify_duplicates::2300",
+      "type": "contains"
+    },
+    {
+      "source": "../Panos/src/organizer/scanner.rs",
+      "target": "../Panos/src/organizer/scanner.rs::fn::collect_files::5548",
+      "type": "contains"
+    },
+    {
+      "source": "../Panos/src/organizer/scanner.rs",
+      "target": "../Panos/src/organizer/scanner.rs::fn::process_files_in_parallel::7146",
+      "type": "contains"
+    },
+    {
+      "source": "../Panos/src/organizer/scanner.rs",
+      "target": "../Panos/src/organizer/scanner.rs::fn::process_files_with_ai::8537",
+      "type": "contains"
+    },
+    {
+      "source": "../Panos/src/organizer/scanner.rs",
+      "target": "../Panos/src/organizer/scanner.rs::fn::process_unknown_files::9843",
+      "type": "contains"
+    },
+    {
+      "source": "../Panos/src/organizer/scanner.rs",
+      "target": "../Panos/src/organizer/scanner.rs::fn::process_duplicates::10699",
+      "type": "contains"
+    },
+    {
+      "source": "../Panos/src/organizer/mod.rs",
+      "target": "../Panos/src/organizer/scanner.rs",
+      "type": "declares_module"
+    },
+    {
+      "source": "../Panos/src/organizer/mod.rs",
+      "target": "../Panos/src/organizer/undo.rs",
+      "type": "declares_module"
+    },
+    {
+      "source": "../Panos/src/organizer/mod.rs",
+      "target": "../Panos/src/organizer/watcher.rs",
+      "type": "declares_module"
+    },
+    {
+      "source": "../Panos/src/organizer/mod.rs",
+      "target": "../Panos/src/organizer/mod.rs::use::pub use scanner::organize;",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/organizer/mod.rs",
+      "target": "../Panos/src/organizer/mod.rs::use::pub use undo::run_undo;",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/organizer/mod.rs",
+      "target": "../Panos/src/organizer/mod.rs::use::pub use watcher::{WatcherPaths, watch_mode};",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/organizer/watcher.rs",
+      "target": "../Panos/src/organizer/watcher.rs::use::use anyhow::{Context, Result};",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/organizer/watcher.rs",
+      "target": "../Panos/src/organizer/watcher.rs::use::use notify::{Config as NotifyConfig, Event, RecommendedWatcher, RecursiveMode, Watcher};",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/organizer/watcher.rs",
+      "target": "../Panos/src/organizer/watcher.rs::use::use tracing::{debug, error, info, warn};",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/organizer/watcher.rs",
+      "target": "../Panos/src/organizer/watcher.rs::use::use crate::config::Config;",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/organizer/watcher.rs",
+      "target": "../Panos/src/organizer/watcher.rs::use::use crate::file_ops::{Session, remove_empty_dirs};",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/organizer/watcher.rs",
+      "target": "../Panos/src/organizer/watcher.rs::use::use crate::organizer::organize;",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/organizer/watcher.rs",
+      "target": "../Panos/src/organizer/watcher.rs::use::use crate::rules::ai::PanosAI;",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/organizer/watcher.rs",
+      "target": "../Panos/src/organizer/watcher.rs::use::use crate::ui::NoopReporter;",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/organizer/watcher.rs",
+      "target": "../Panos/src/organizer/watcher.rs::struct::WatcherPaths",
+      "type": "contains"
+    },
+    {
+      "source": "../Panos/src/organizer/watcher.rs",
+      "target": "../Panos/src/organizer/watcher.rs::struct::WatcherPaths",
+      "type": "implements"
+    },
+    {
+      "source": "../Panos/src/organizer/watcher.rs",
+      "target": "../Panos/src/organizer/watcher.rs::fn::new::832",
+      "type": "contains"
+    },
+    {
+      "source": "../Panos/src/organizer/watcher.rs",
+      "target": "../Panos/src/organizer/watcher.rs::fn::watch_mode::1494",
+      "type": "contains"
+    },
+    {
+      "source": "../Panos/src/organizer/watcher.rs",
+      "target": "../Panos/src/organizer/watcher.rs::fn::run_event_loop::2082",
+      "type": "contains"
+    },
+    {
+      "source": "../Panos/src/organizer/watcher.rs",
+      "target": "../Panos/src/organizer/watcher.rs::fn::should_ignore::3853",
+      "type": "contains"
+    },
+    {
+      "source": "../Panos/src/organizer/watcher.rs",
+      "target": "../Panos/src/organizer/watcher.rs::fn::process_stabilized_events::5255",
+      "type": "contains"
+    },
+    {
+      "source": "../Panos/src/organizer/undo.rs",
+      "target": "../Panos/src/organizer/undo.rs::use::use anyhow::{Context, Result};",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/organizer/undo.rs",
+      "target": "../Panos/src/organizer/undo.rs::use::use rayon::prelude::*;",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/organizer/undo.rs",
+      "target": "../Panos/src/organizer/undo.rs::use::use tracing::{info, warn};",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/organizer/undo.rs",
+      "target": "../Panos/src/organizer/undo.rs::use::use crate::check_integrity;",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/organizer/undo.rs",
+      "target": "../Panos/src/organizer/undo.rs::use::use crate::config::Config;",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/organizer/undo.rs",
+      "target": "../Panos/src/organizer/undo.rs::use::use crate::file_ops::{Session, move_file};",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/organizer/undo.rs",
+      "target": "../Panos/src/organizer/undo.rs::use::use crate::ui::reporter::ProgressReporter;",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/organizer/undo.rs",
+      "target": "../Panos/src/organizer/undo.rs::fn::run_undo::258",
+      "type": "contains"
+    },
+    {
+      "source": "../Panos/src/file_ops/mover.rs",
+      "target": "../Panos/src/file_ops/mover.rs::use::use anyhow::Result;",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/file_ops/mover.rs",
+      "target": "../Panos/src/file_ops/mover.rs::use::use chrono::Utc;",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/file_ops/mover.rs",
+      "target": "../Panos/src/file_ops/mover.rs::use::use tracing::info;",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/file_ops/mover.rs",
+      "target": "../Panos/src/file_ops/mover.rs::use::use crate::file_ops::get_file_size;",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/file_ops/mover.rs",
+      "target": "../Panos/src/file_ops/mover.rs::use::use crate::file_ops::history::MoveRecord;",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/file_ops/mover.rs",
+      "target": "../Panos/src/file_ops/mover.rs::fn::move_file::233",
+      "type": "contains"
+    },
+    {
+      "source": "../Panos/src/file_ops/integrity.rs",
+      "target": "../Panos/src/file_ops/integrity.rs::use::use anyhow::Result;",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/file_ops/integrity.rs",
+      "target": "../Panos/src/file_ops/integrity.rs::use::use rayon::prelude::*;",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/file_ops/integrity.rs",
+      "target": "../Panos/src/file_ops/integrity.rs::use::use tracing::info;",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/file_ops/integrity.rs",
+      "target": "../Panos/src/file_ops/integrity.rs::use::use crate::file_ops::history::MoveRecord;",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/file_ops/integrity.rs",
+      "target": "../Panos/src/file_ops/integrity.rs::use::use crate::ui::ProgressReporter;",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/file_ops/integrity.rs",
+      "target": "../Panos/src/file_ops/integrity.rs::struct::IntegrityReport",
+      "type": "contains"
+    },
+    {
+      "source": "../Panos/src/file_ops/integrity.rs",
+      "target": "../Panos/src/file_ops/integrity.rs::fn::check_integrity::344",
+      "type": "contains"
+    },
+    {
+      "source": "../Panos/src/file_ops/integrity.rs",
+      "target": "../Panos/src/file_ops/integrity.rs::fn::verify_moves::1037",
+      "type": "contains"
+    },
+    {
+      "source": "../Panos/src/file_ops/hashing.rs",
+      "target": "../Panos/src/file_ops/hashing.rs::use::use twox_hash::XxHash64;",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/file_ops/hashing.rs",
+      "target": "../Panos/src/file_ops/hashing.rs::fn::get_file_size::150",
+      "type": "contains"
+    },
+    {
+      "source": "../Panos/src/file_ops/hashing.rs",
+      "target": "../Panos/src/file_ops/hashing.rs::fn::calculate_partial_hash::246",
+      "type": "contains"
+    },
+    {
+      "source": "../Panos/src/file_ops/hashing.rs",
+      "target": "../Panos/src/file_ops/hashing.rs::fn::calculate_full_hash::594",
+      "type": "contains"
+    },
+    {
+      "source": "../Panos/src/file_ops/mod.rs",
+      "target": "../Panos/src/file_ops/hashing.rs",
+      "type": "declares_module"
+    },
+    {
+      "source": "../Panos/src/file_ops/mod.rs",
+      "target": "../Panos/src/file_ops/history.rs",
+      "type": "declares_module"
+    },
+    {
+      "source": "../Panos/src/file_ops/mod.rs",
+      "target": "../Panos/src/file_ops/integrity.rs",
+      "type": "declares_module"
+    },
+    {
+      "source": "../Panos/src/file_ops/mod.rs",
+      "target": "../Panos/src/file_ops/mover.rs",
+      "type": "declares_module"
+    },
+    {
+      "source": "../Panos/src/file_ops/mod.rs",
+      "target": "../Panos/src/file_ops/remover.rs",
+      "type": "declares_module"
+    },
+    {
+      "source": "../Panos/src/file_ops/mod.rs",
+      "target": "../Panos/src/file_ops/mod.rs::use::pub use hashing::{calculate_full_hash, calculate_partial_hash, get_file_size};",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/file_ops/mod.rs",
+      "target": "../Panos/src/file_ops/mod.rs::use::pub use history::{MoveRecord, Session};",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/file_ops/mod.rs",
+      "target": "../Panos/src/file_ops/mod.rs::use::pub use integrity::check_integrity;",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/file_ops/mod.rs",
+      "target": "../Panos/src/file_ops/mod.rs::use::pub use mover::move_file;",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/file_ops/mod.rs",
+      "target": "../Panos/src/file_ops/mod.rs::use::pub use remover::remove_empty_dirs;",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/file_ops/history.rs",
+      "target": "../Panos/src/file_ops/history.rs::use::use anyhow::Result;",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/file_ops/history.rs",
+      "target": "../Panos/src/file_ops/history.rs::use::use chrono::{DateTime, Utc};",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/file_ops/history.rs",
+      "target": "../Panos/src/file_ops/history.rs::struct::MoveRecord",
+      "type": "contains"
+    },
+    {
+      "source": "../Panos/src/file_ops/history.rs",
+      "target": "../Panos/src/file_ops/history.rs::struct::Session",
+      "type": "contains"
+    },
+    {
+      "source": "../Panos/src/file_ops/history.rs",
+      "target": "../Panos/src/file_ops/history.rs::struct::Session",
+      "type": "implements"
+    },
+    {
+      "source": "../Panos/src/file_ops/history.rs",
+      "target": "../Panos/src/file_ops/history.rs::fn::save::485",
+      "type": "contains"
+    },
+    {
+      "source": "../Panos/src/file_ops/history.rs",
+      "target": "../Panos/src/file_ops/history.rs::fn::load::786",
+      "type": "contains"
+    },
+    {
+      "source": "../Panos/src/file_ops/remover.rs",
+      "target": "../Panos/src/file_ops/remover.rs::use::use anyhow::Result;",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/file_ops/remover.rs",
+      "target": "../Panos/src/file_ops/remover.rs::use::use tracing::info;",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/file_ops/remover.rs",
+      "target": "../Panos/src/file_ops/remover.rs::use::use crate::file_ops::MoveRecord;",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/file_ops/remover.rs",
+      "target": "../Panos/src/file_ops/remover.rs::use::use crate::ui::ProgressReporter;",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/file_ops/remover.rs",
+      "target": "../Panos/src/file_ops/remover.rs::fn::remove_empty_dirs::246",
+      "type": "contains"
+    },
+    {
+      "source": "../Panos/src/file_ops/remover.rs",
+      "target": "../Panos/src/file_ops/remover.rs::fn::is_actually_empty::1918",
+      "type": "contains"
+    },
+    {
+      "source": "../Panos/src/file_ops/remover.rs",
+      "target": "../Panos/src/file_ops/remover.rs::fn::predict_directory_empty::2183",
+      "type": "contains"
+    },
+    {
+      "source": "../Panos/src/cli/mod.rs",
+      "target": "../Panos/src/cli/args.rs",
+      "type": "declares_module"
+    },
+    {
+      "source": "../Panos/src/cli/mod.rs",
+      "target": "../Panos/src/cli/mod.rs::use::pub use args::Args;",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/cli/args.rs",
+      "target": "../Panos/src/cli/args.rs::use::use clap::Parser;",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/cli/args.rs",
+      "target": "../Panos/src/cli/args.rs::struct::Args",
+      "type": "contains"
+    },
+    {
+      "source": "../Panos/src/rules/ai.rs",
+      "target": "../Panos/src/rules/ai.rs::use::use ort::{session::Session as OrtSession, value::Tensor};",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/rules/ai.rs",
+      "target": "../Panos/src/rules/ai.rs::use::use tokenizers::Tokenizer;",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/rules/ai.rs",
+      "target": "../Panos/src/rules/ai.rs::use::use crate::config::{Config, Rule};",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/rules/ai.rs",
+      "target": "../Panos/src/rules/ai.rs::struct::PanosAI",
+      "type": "contains"
+    },
+    {
+      "source": "../Panos/src/rules/ai.rs",
+      "target": "../Panos/src/rules/ai.rs::struct::PanosAI",
+      "type": "implements"
+    },
+    {
+      "source": "../Panos/src/rules/ai.rs",
+      "target": "../Panos/src/rules/ai.rs::fn::new::327",
+      "type": "contains"
+    },
+    {
+      "source": "../Panos/src/rules/ai.rs",
+      "target": "../Panos/src/rules/ai.rs::fn::normalize::1268",
+      "type": "contains"
+    },
+    {
+      "source": "../Panos/src/rules/ai.rs",
+      "target": "../Panos/src/rules/ai.rs::fn::tokenize::1494",
+      "type": "contains"
+    },
+    {
+      "source": "../Panos/src/rules/ai.rs",
+      "target": "../Panos/src/rules/ai.rs::fn::get_embedding::2042",
+      "type": "contains"
+    },
+    {
+      "source": "../Panos/src/rules/ai.rs",
+      "target": "../Panos/src/rules/ai.rs::fn::cosine_similarity::3286",
+      "type": "contains"
+    },
+    {
+      "source": "../Panos/src/rules/ai.rs",
+      "target": "../Panos/src/rules/ai.rs::fn::determine_rule::3505",
+      "type": "contains"
+    },
+    {
+      "source": "../Panos/src/rules/matcher.rs",
+      "target": "../Panos/src/rules/matcher.rs::use::use crate::config::Rule;",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/rules/matcher.rs",
+      "target": "../Panos/src/rules/matcher.rs::fn::find_rule_for_file::124",
+      "type": "contains"
+    },
+    {
+      "source": "../Panos/src/rules/matcher.rs",
+      "target": "../Panos/src/rules/matcher.rs::fn::is_temp_file::779",
+      "type": "contains"
+    },
+    {
+      "source": "../Panos/src/rules/mod.rs",
+      "target": "../Panos/src/rules/ai.rs",
+      "type": "declares_module"
+    },
+    {
+      "source": "../Panos/src/rules/mod.rs",
+      "target": "../Panos/src/rules/matcher.rs",
+      "type": "declares_module"
+    },
+    {
+      "source": "../Panos/src/rules/mod.rs",
+      "target": "../Panos/src/rules/mod.rs::use::pub use ai::PanosAI;",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/rules/mod.rs",
+      "target": "../Panos/src/rules/mod.rs::use::pub use matcher::{find_rule_for_file, is_temp_file};",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/main.rs",
+      "target": "../Panos/src/main.rs::use::use anyhow::Result;",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/main.rs",
+      "target": "../Panos/src/main.rs::use::use clap::Parser;",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/main.rs",
+      "target": "../Panos/src/main.rs::use::use tracing::info;",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/main.rs",
+      "target": "../Panos/src/main.rs::use::use tracing_subscriber::{EnvFilter, FmtSubscriber};",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/main.rs",
+      "target": "../Panos/src/main.rs::use::use panos::{\n    Args, Config,\n    file_ops::{MoveRecord, Session, check_integrity, remove_empty_dirs},\n    organizer::{organize, run_undo, watch_mode},\n    rules::PanosAI,\n    ui::IndicatifReporter,\n};",
+      "type": "imports"
+    },
+    {
+      "source": "../Panos/src/main.rs",
+      "target": "../Panos/src/main.rs::fn::main::354",
       "type": "contains"
     }
   ]
