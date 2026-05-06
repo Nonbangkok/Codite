@@ -142,7 +142,7 @@ export const GraphView: React.FC<GraphViewProps> = ({ graphData, selectedNode, o
   return (
     <ForceGraph2D
       ref={fgRef}
-      width={windowWidth - customWidthOffset}
+      width={windowWidth - customWidthOffset - 260}
       graphData={graphData}
       nodeCanvasObject={paintNode}
       nodeLabel={() => ""} // ปิด tooltip เพราะเราวาดข้อความเอง

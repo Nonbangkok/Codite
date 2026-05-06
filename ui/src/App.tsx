@@ -11,7 +11,7 @@ function App() {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [activeFolderPath, setActiveFolderPath] = useState<string | null>(null);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
-  const [panelWidth, setPanelWidth] = useState(900);
+  const [panelWidth, setPanelWidth] = useState(600);
   const [isResizing, setIsResizing] = useState(false);
   const prevDataStrRef = useRef<string>('');
 
@@ -90,7 +90,7 @@ function App() {
   const resize = useCallback((e: MouseEvent) => {
     if (isResizing) {
       const newWidth = document.body.clientWidth - e.clientX;
-      if (newWidth > 300 && newWidth < 900) {
+      if (newWidth >= 300 && newWidth <= 800) {
         setPanelWidth(newWidth);
       }
     }
@@ -130,7 +130,6 @@ function App() {
         onFolderSelect={setActiveFolderPath}
         onFileSelect={setSelectedNodeId}
       />
-
       {/* Main Graph Area */}
       <div style={{ flex: 1, position: 'relative' }}>
         {/* Header Info */}
@@ -166,7 +165,7 @@ function App() {
         <div
           onMouseDown={startResizing}
           style={{
-            width: '4px',
+            width: '6px',
             cursor: 'col-resize',
             background: isResizing ? '#f4d676' : 'transparent',
             zIndex: 150,
@@ -193,7 +192,6 @@ function App() {
           <CodePreviewPanel
             selectedNode={selectedNode}
             onClose={() => setSelectedNodeId(null)}
-            width={panelWidth}
           />
         )}
       </div>
