@@ -6,6 +6,7 @@ import { CodePreviewPanel } from './components/CodePreviewPanel';
 function App() {
   const [graphData, setGraphData] = useState<GraphData>({ nodes: [], links: [] });
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [activeFolderPath, setActiveFolderPath] = useState<string | null>(null);
   const [panelWidth, setPanelWidth] = useState(450);
   const [isResizing, setIsResizing] = useState(false);
   const prevDataStrRef = useRef<string>('');
@@ -41,6 +42,22 @@ function App() {
     const interval = setInterval(fetchData, 5000);
     return () => clearInterval(interval);
   }, []);
+
+  // กรองข้อมูลตามโฟลเดอร์ที่เลือก (Folder Filtering)
+  const filteredData = useMemo(() => {
+    if (!activeFolderPath) return graphData;
+    
+    const nodes = graphData.nodes.filter(n => n.id.startsWith(activeFolderPath));
+    const nodeIds = new Set(nodes.map(n => n.id));
+    
+    const links = graphData.links.filter(l => {
+      const sourceId = typeof l.source === 'string' ? l.source : l.source.id;
+      const targetId = typeof l.target === 'string' ? l.target : l.target.id;
+      return nodeIds.has(sourceId) && nodeIds.has(targetId);
+    });
+
+    return { nodes, links };
+  }, [graphData, activeFolderPath]);
 
   // ระบบขยายขนาดแถบข้าง (Resizing Logic)
   const startResizing = useCallback((e: React.MouseEvent) => {
@@ -93,7 +110,7 @@ function App() {
       {/* Main Graph Area */}
       <div style={{ flex: 1, position: 'relative' }}>
         <GraphView 
-          graphData={graphData} 
+          graphData={filteredData} 
           selectedNode={selectedNode} 
           onNodeSelect={(node) => setSelectedNodeId(node ? node.id : null)} 
           customWidthOffset={selectedNode ? panelWidth : 0}
