@@ -2,11 +2,13 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import type { GraphData, NodeData } from './types';
 import { GraphView } from './components/GraphView';
 import { CodePreviewPanel } from './components/CodePreviewPanel';
+import { CommandPalette } from './components/CommandPalette';
 
 function App() {
   const [graphData, setGraphData] = useState<GraphData>({ nodes: [], links: [] });
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [activeFolderPath, setActiveFolderPath] = useState<string | null>(null);
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [panelWidth, setPanelWidth] = useState(450);
   const [isResizing, setIsResizing] = useState(false);
   const prevDataStrRef = useRef<string>('');
@@ -41,6 +43,18 @@ function App() {
     fetchData();
     const interval = setInterval(fetchData, 5000);
     return () => clearInterval(interval);
+  }, []);
+
+  // ปุ่มลัดเปิด Command Palette
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'p')) {
+        e.preventDefault();
+        setIsCommandPaletteOpen(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
   // กรองข้อมูลตามโฟลเดอร์ที่เลือก (Folder Filtering)
@@ -93,6 +107,13 @@ function App() {
 
   return (
     <div style={{ width: '100vw', height: '100vh', background: '#161618', overflow: 'hidden', display: 'flex' }}>
+      <CommandPalette 
+        isOpen={isCommandPaletteOpen}
+        onClose={() => setIsCommandPaletteOpen(false)}
+        nodes={graphData.nodes}
+        onSelect={(node) => setSelectedNodeId(node.id)}
+      />
+      
       {/* Header Info */}
       <div style={{ 
         position: 'absolute', 

@@ -2,10 +2,10 @@
 
 - [x] Task 1: สถาปัตยกรรมข้อมูลและการกรอง (Filter State)
     - [x] Step 1: เพิ่ม State สำหรับการกรองโฟลเดอร์ใน App.tsx
-    - [ ] Step 2: บันทึกและ Commit
+    - [x] Step 2: บันทึกและ Commit
 - [ ] Task 2: ระบบ Command Palette (Fuzzy Search)
-    - [ ] Step 1: ติดตั้ง Fuse.js และ Lucide React
-    - [ ] Step 2: สร้างส่วนประกอบ Command Palette.tsx
+    - [x] Step 1: ติดตั้ง Fuse.js และ Lucide React
+    - [x] Step 2: สร้างส่วนประกอบ Command Palette.tsx
     - [ ] Step 3: บันทึกและ Commit
 - [ ] Task 3: ระบบ File Explorer (Left Sidebar)
     - [ ] Step 1: สร้างฟังก์ชันแปลง Flat Data เป็น Tree Structure
