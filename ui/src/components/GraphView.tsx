@@ -49,14 +49,33 @@ export const GraphView: React.FC<GraphViewProps> = ({ graphData, selectedNode, o
   // ปรับแต่งแรงผลักและระยะห่างของ d3-force
   useEffect(() => {
     if (fgRef.current) {
-      fgRef.current.d3Force('charge').strength(-150);
-      fgRef.current.d3Force('link').distance(100);
+      const n = graphData.nodes.length;
+      const sqrtN = Math.sqrt(Math.max(1, n));
+      // Stronger repulsion with more nodes; distanceMax scales so distant clusters still spread
+      const chargeStrength = -Math.max(400, 75 * sqrtN);
+      const distanceMax = Math.max(500, 55 * sqrtN);
+      // Leaf nodes cluster tightly; file-to-file edges get more room in larger graphs
+      const leafDist = Math.max(30, 80 - sqrtN * 1.5);
+      const fileDist = Math.max(100, 60 + sqrtN * 4);
+
+      fgRef.current.d3Force('charge').strength(chargeStrength).distanceMax(distanceMax);
+      fgRef.current.d3Force('link').distance((link: any) => {
+        const src = link.source;
+        const tgt = link.target;
+        const srcGroup = typeof src === 'object' ? src.group : null;
+        const tgtGroup = typeof tgt === 'object' ? tgt.group : null;
+        const isLeafLink = srcGroup === 'functions' || tgtGroup === 'functions'
+          || srcGroup === 'structs' || tgtGroup === 'structs'
+          || srcGroup === 'enums' || tgtGroup === 'enums'
+          || srcGroup === 'traits' || tgtGroup === 'traits';
+        return isLeafLink ? leafDist : fileDist;
+      });
       fgRef.current.d3Force('collide', d3.forceCollide().radius((node: any) => {
         const radius = Math.sqrt(node.val || 1) * 2;
         return radius + 25;
       }));
     }
-  }, []);
+  }, [graphData.nodes.length]);
 
   const [fadeOpacity, setFadeOpacity] = useState(1.0);
   const fadeRequestId = useRef<number | null>(null);
