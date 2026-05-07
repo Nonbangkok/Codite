@@ -18,6 +18,98 @@ const TYPE_COLORS: Record<string, string> = {
   default: '#a2a7b6'    // Grey-blue for files/others
 };
 
+const LEAF_GROUPS = new Set(['functions', 'structs', 'enums', 'traits']);
+
+// BFS from file nodes outward; file nodes get rank 0, leaves get rank 1+
+function computeRanks(nodes: any[], links: any[]): Map<string, number> {
+  const ranks = new Map<string, number>();
+  const adj = new Map<string, string[]>();
+  for (const n of nodes) adj.set(n.id, []);
+  for (const l of links) {
+    const s = typeof l.source === 'object' ? l.source.id : l.source;
+    const t = typeof l.target === 'object' ? l.target.id : l.target;
+    adj.get(s)?.push(t);
+    adj.get(t)?.push(s);
+  }
+  const queue: string[] = [];
+  for (const n of nodes) {
+    if (!LEAF_GROUPS.has(n.group)) { ranks.set(n.id, 0); queue.push(n.id); }
+  }
+  let head = 0;
+  while (head < queue.length) {
+    const id = queue[head++];
+    const r = ranks.get(id)!;
+    for (const nb of adj.get(id) || []) {
+      if (!ranks.has(nb)) { ranks.set(nb, r + 1); queue.push(nb); }
+    }
+  }
+  return ranks;
+}
+
+// Each tick samples random edge pairs; when two edges cross, the node with the
+// highest rank (furthest from a file root) is reflected across the other edge.
+function forceCrossingReduction(ranks: Map<string, number>, fgRef: React.MutableRefObject<any>, samplesPerTick = 800) {
+  function ccw(ax: number, ay: number, bx: number, by: number, cx: number, cy: number) {
+    return (cy - ay) * (bx - ax) > (by - ay) * (cx - ax);
+  }
+  function crosses(ax: number, ay: number, bx: number, by: number,
+    cx: number, cy: number, dx: number, dy: number) {
+    return ccw(ax, ay, cx, cy, dx, dy) !== ccw(bx, by, cx, cy, dx, dy) &&
+      ccw(ax, ay, bx, by, cx, cy) !== ccw(ax, ay, bx, by, dx, dy);
+  }
+  function reflect(px: number, py: number, ax: number, ay: number, bx: number, by: number) {
+    const ex = bx - ax, ey = by - ay, lenSq = ex * ex + ey * ey;
+    if (lenSq < 1) return null;
+    const t = ((px - ax) * ex + (py - ay) * ey) / lenSq;
+    return { x: 2 * (ax + t * ex) - px, y: 2 * (ay + t * ey) - py };
+  }
+
+  function force(this: any, alpha: number) {
+    if (alpha < 0.01) return;
+    const simLinks: any[] = fgRef.current?.d3Force('link')?.links() ?? [];
+    const n = simLinks.length;
+    if (n < 2) return;
+    const checks = Math.min(samplesPerTick, (n * (n - 1)) >> 1);
+    for (let k = 0; k < checks; k++) {
+      const i = Math.floor(Math.random() * n);
+      let j = Math.floor(Math.random() * (n - 1));
+      if (j >= i) j++;
+      const l1 = simLinks[i], l2 = simLinks[j];
+      const a = l1.source, b = l1.target, c = l2.source, d = l2.target;
+      if (!a?.x || !b?.x || !c?.x || !d?.x) continue;
+      if (a === c || a === d || b === c || b === d) continue;
+      if (!crosses(a.x, a.y, b.x, b.y, c.x, c.y, d.x, d.y)) continue;
+
+      // Pick the highest-rank (most peripheral) unpinned node to move
+      const candidates = [
+        { node: a, rank: ranks.get(a.id) ?? 0, onL2: false },
+        { node: b, rank: ranks.get(b.id) ?? 0, onL2: false },
+        { node: c, rank: ranks.get(c.id) ?? 0, onL2: true },
+        { node: d, rank: ranks.get(d.id) ?? 0, onL2: true },
+      ].filter(x => x.node.fx == null).sort((x, y) => y.rank - x.rank);
+      if (!candidates.length) continue;
+
+      const { node: mover, onL2 } = candidates[0];
+      // Reflect across the edge it does NOT belong to
+      const ref = onL2
+        ? reflect(mover.x, mover.y, a.x, a.y, b.x, b.y)
+        : reflect(mover.x, mover.y, c.x, c.y, d.x, d.y);
+      if (!ref) continue;
+
+      const dx = ref.x - mover.x, dy = ref.y - mover.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < 1) continue;
+
+      const f = alpha * 0.5;
+      mover.vx += (dx / dist) * Math.min(dist, 60) * f;
+      mover.vy += (dy / dist) * Math.min(dist, 60) * f;
+    }
+  }
+
+  (force as any).initialize = () => { };
+  return force;
+}
+
 // Configuration
 const CONFIG = {
   // Pan momentum
@@ -74,8 +166,11 @@ export const GraphView: React.FC<GraphViewProps> = ({ graphData, selectedNode, o
         const radius = Math.sqrt(node.val || 1) * 2;
         return radius + 25;
       }));
+
+      const ranks = computeRanks(graphData.nodes, graphData.links);
+      fgRef.current.d3Force('crossReduce', forceCrossingReduction(ranks, fgRef));
     }
-  }, [graphData.nodes.length]);
+  }, [graphData.nodes.length, graphData.nodes, graphData.links]);
 
   const [fadeOpacity, setFadeOpacity] = useState(1.0);
   const fadeRequestId = useRef<number | null>(null);
