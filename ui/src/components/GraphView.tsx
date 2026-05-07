@@ -10,13 +10,25 @@ interface GraphViewProps {
   customWidthOffset?: number;
 }
 
-const TYPE_COLORS: Record<string, string> = {
-  functions: '#d19a66', // Peach/Orange
-  structs: '#61afef',   // Blue
-  enums: '#c678dd',     // Purple
-  traits: '#98c379',    // Green
-  default: '#a2a7b6'    // Grey-blue for files/others
+// Pre-parsed RGB tuples — avoids d3.color() object creation on every canvas frame
+const TYPE_RGB: Record<string, readonly [number, number, number]> = {
+  functions: [209, 154, 102],
+  structs:   [97,  175, 239],
+  enums:     [198, 120, 221],
+  traits:    [152, 195, 121],
+  default:   [162, 167, 182],
 };
+// Brightened ~0.5 stops (approx d3.brighter(0.5), channels * 1.195, capped at 255)
+const TYPE_RGB_BRIGHT: Record<string, readonly [number, number, number]> = {
+  functions: [249, 183, 121],
+  structs:   [115, 209, 255],
+  enums:     [236, 143, 255],
+  traits:    [181, 233, 144],
+  default:   [193, 199, 217],
+};
+const HOVER_RGB: readonly [number, number, number] = [244, 214, 118];
+const rgbaStr = (rgb: readonly [number, number, number], a: number) =>
+  `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${a})`;
 
 const LEAF_GROUPS = new Set(['functions', 'structs', 'enums', 'traits']);
 
@@ -64,9 +76,16 @@ function forceCrossingReduction(ranks: Map<string, number>, fgRef: React.Mutable
     return { x: 2 * (ax + t * ex) - px, y: 2 * (ay + t * ey) - py };
   }
 
+  // Cache the resolved link array after first access (avoids repeated d3Force lookup per tick)
+  let cachedLinks: any[] | null = null;
+
   function force(this: any, alpha: number) {
     if (alpha < 0.01) return;
-    const simLinks: any[] = fgRef.current?.d3Force('link')?.links() ?? [];
+    if (!cachedLinks) {
+      cachedLinks = fgRef.current?.d3Force('link')?.links() ?? null;
+      if (!cachedLinks) return;
+    }
+    const simLinks = cachedLinks;
     const n = simLinks.length;
     if (n < 2) return;
     const checks = Math.min(samplesPerTick, (n * (n - 1)) >> 1);
@@ -80,33 +99,32 @@ function forceCrossingReduction(ranks: Map<string, number>, fgRef: React.Mutable
       if (a === c || a === d || b === c || b === d) continue;
       if (!crosses(a.x, a.y, b.x, b.y, c.x, c.y, d.x, d.y)) continue;
 
-      // Pick the highest-rank (most peripheral) unpinned node to move
-      const candidates = [
-        { node: a, rank: ranks.get(a.id) ?? 0, onL2: false },
-        { node: b, rank: ranks.get(b.id) ?? 0, onL2: false },
-        { node: c, rank: ranks.get(c.id) ?? 0, onL2: true },
-        { node: d, rank: ranks.get(d.id) ?? 0, onL2: true },
-      ].filter(x => x.node.fx == null).sort((x, y) => y.rank - x.rank);
-      if (!candidates.length) continue;
+      // No-alloc max-rank search — avoids filter/sort array allocation per crossing
+      let mover: any = null, moverRank = -1, moverOnL2 = false;
+      const tryNode = (node: any, onL2: boolean) => {
+        if (node.fx != null) return;
+        const r = ranks.get(node.id) ?? 0;
+        if (r > moverRank) { mover = node; moverRank = r; moverOnL2 = onL2; }
+      };
+      tryNode(a, false); tryNode(b, false); tryNode(c, true); tryNode(d, true);
+      if (!mover) continue;
 
-      const { node: mover, onL2 } = candidates[0];
-      // Reflect across the edge it does NOT belong to
-      const ref = onL2
+      const ref = moverOnL2
         ? reflect(mover.x, mover.y, a.x, a.y, b.x, b.y)
         : reflect(mover.x, mover.y, c.x, c.y, d.x, d.y);
       if (!ref) continue;
 
-      const dx = ref.x - mover.x, dy = ref.y - mover.y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
+      const rdx = ref.x - mover.x, rdy = ref.y - mover.y;
+      const dist = Math.sqrt(rdx * rdx + rdy * rdy);
       if (dist < 1) continue;
 
-      const f = alpha * 0.5;
-      mover.vx += (dx / dist) * Math.min(dist, 60) * f;
-      mover.vy += (dy / dist) * Math.min(dist, 60) * f;
+      const scale = Math.min(dist, 60) * alpha * 0.5 / dist;
+      mover.vx += rdx * scale;
+      mover.vy += rdy * scale;
     }
   }
 
-  (force as any).initialize = () => { };
+  (force as any).initialize = () => { cachedLinks = null; };
   return force;
 }
 
@@ -170,9 +188,9 @@ export const GraphView: React.FC<GraphViewProps> = ({ graphData, selectedNode, o
       const ranks = computeRanks(graphData.nodes, graphData.links);
       fgRef.current.d3Force('crossReduce', forceCrossingReduction(ranks, fgRef));
     }
-  }, [graphData.nodes.length, graphData.nodes, graphData.links]);
+  }, [graphData.nodes.length]);
 
-  const [fadeOpacity, setFadeOpacity] = useState(1.0);
+  const fadeOpacityRef = useRef(1.0);
   const fadeRequestId = useRef<number | null>(null);
 
   // Pan momentum refs
@@ -493,25 +511,20 @@ export const GraphView: React.FC<GraphViewProps> = ({ graphData, selectedNode, o
     lastTransform.current = null;
   }, []);
 
-  // Fade animation for hover effect
+  // Fade animation — writes to ref only, no setState, no React re-renders per frame
   useEffect(() => {
     const target = hoverNode ? 0.15 : 1.0;
     const step = 0.05;
-
+    if (fadeRequestId.current) cancelAnimationFrame(fadeRequestId.current);
     const animate = () => {
-      setFadeOpacity(prev => {
-        if (Math.abs(prev - target) < step) return target;
-        return prev + (target > prev ? step : -step);
-      });
+      const prev = fadeOpacityRef.current;
+      const diff = target - prev;
+      if (Math.abs(diff) < step) { fadeOpacityRef.current = target; fadeRequestId.current = null; return; }
+      fadeOpacityRef.current = prev + (diff > 0 ? step : -step);
       fadeRequestId.current = requestAnimationFrame(animate);
     };
-
-    if (fadeRequestId.current) cancelAnimationFrame(fadeRequestId.current);
     fadeRequestId.current = requestAnimationFrame(animate);
-
-    return () => {
-      if (fadeRequestId.current) cancelAnimationFrame(fadeRequestId.current);
-    };
+    return () => { if (fadeRequestId.current) cancelAnimationFrame(fadeRequestId.current); };
   }, [hoverNode]);
 
   const handleNodeHover = useCallback((node: NodeData | null) => {
@@ -537,40 +550,33 @@ export const GraphView: React.FC<GraphViewProps> = ({ graphData, selectedNode, o
   }, [graphData.links]);
 
   const paintNode = useCallback((node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
-    const label = node.label;
-    const fontSize = 10;
     const radius = Math.sqrt(node.val || 1) * 2;
-
     const isHighlighted = highlightNodes.has(node.id);
     const isSelected = selectedNode?.id === node.id;
     const isHovered = hoverNode?.id === node.id;
-    const isNeighbor = hoverNode && highlightNodes.has(node.id) && !isHovered;
+    const isNeighbor = hoverNode && isHighlighted && !isHovered;
 
-    // กำหนดสีตามประเภทของโหนด
-    const baseColor = TYPE_COLORS[node.group] || TYPE_COLORS.default;
+    const rgb = (isSelected || isHovered)
+      ? HOVER_RGB
+      : isNeighbor
+        ? (TYPE_RGB_BRIGHT[node.group] ?? TYPE_RGB_BRIGHT.default)
+        : (TYPE_RGB[node.group] ?? TYPE_RGB.default);
 
-    let color = baseColor;
-    if (isSelected || isHovered) {
-      color = '#f4d676';
-    } else if (isNeighbor) {
-      color = d3.color(baseColor)?.brighter(0.5).toString() || baseColor;
-    }
-
-    const opacity = isHighlighted ? 1 : fadeOpacity;
+    const fill = rgbaStr(rgb, isHighlighted ? 1 : fadeOpacityRef.current);
 
     ctx.beginPath();
     ctx.arc(node.x, node.y, radius, 0, 2 * Math.PI, false);
-    ctx.fillStyle = d3.color(color)?.copy({ opacity }).toString() || color;
+    ctx.fillStyle = fill;
     ctx.fill();
 
     if (globalScale > 0.6 || isHighlighted || isSelected) {
-      ctx.font = `normal ${fontSize}px Inter, sans-serif`;
+      ctx.font = `normal 10px Inter, sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
-      ctx.fillStyle = d3.color(color)?.copy({ opacity }).toString() || color;
-      ctx.fillText(label, node.x, node.y + radius + 1.5);
+      ctx.fillStyle = fill;
+      ctx.fillText(node.label, node.x, node.y + radius + 1.5);
     }
-  }, [hoverNode, highlightNodes, selectedNode, fadeOpacity]);
+  }, [hoverNode, highlightNodes, selectedNode]);
 
   return (
     <div ref={containerRef} style={{ width: '100%', height: '100%' }}>
@@ -589,8 +595,7 @@ export const GraphView: React.FC<GraphViewProps> = ({ graphData, selectedNode, o
         maxZoom={10}
         linkColor={(link) => {
           const isHighlighted = highlightLinks.has(link as LinkData);
-          const opacity = isHighlighted ? 0.8 : (fadeOpacity * 0.25);
-          return `rgba(162, 167, 182, ${opacity})`;
+          return `rgba(162,167,182,${isHighlighted ? 0.8 : fadeOpacityRef.current * 0.25})`;
         }}
         linkWidth={(link) => highlightLinks.has(link as LinkData) ? 2.0 : 0.8}
         d3AlphaDecay={0.02}
