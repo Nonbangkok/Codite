@@ -13,18 +13,18 @@ interface GraphViewProps {
 // Pre-parsed RGB tuples — avoids d3.color() object creation on every canvas frame
 const TYPE_RGB: Record<string, readonly [number, number, number]> = {
   functions: [209, 154, 102],
-  structs:   [97,  175, 239],
-  enums:     [198, 120, 221],
-  traits:    [152, 195, 121],
-  default:   [162, 167, 182],
+  structs: [97, 175, 239],
+  enums: [198, 120, 221],
+  traits: [152, 195, 121],
+  default: [162, 167, 182],
 };
 // Brightened ~0.5 stops (approx d3.brighter(0.5), channels * 1.195, capped at 255)
 const TYPE_RGB_BRIGHT: Record<string, readonly [number, number, number]> = {
   functions: [249, 183, 121],
-  structs:   [115, 209, 255],
-  enums:     [236, 143, 255],
-  traits:    [181, 233, 144],
-  default:   [193, 199, 217],
+  structs: [115, 209, 255],
+  enums: [236, 143, 255],
+  traits: [181, 233, 144],
+  default: [193, 199, 217],
 };
 const HOVER_RGB: readonly [number, number, number] = [244, 214, 118];
 const rgbaStr = (rgb: readonly [number, number, number], a: number) =>
@@ -80,7 +80,7 @@ function forceCrossingReduction(ranks: Map<string, number>, fgRef: React.Mutable
   let cachedLinks: any[] | null = null;
 
   function force(this: any, alpha: number) {
-    if (alpha < 0.01) return;
+    if (alpha < 0.005) return;
     if (!cachedLinks) {
       cachedLinks = fgRef.current?.d3Force('link')?.links() ?? null;
       if (!cachedLinks) return;
@@ -118,7 +118,7 @@ function forceCrossingReduction(ranks: Map<string, number>, fgRef: React.Mutable
       const dist = Math.sqrt(rdx * rdx + rdy * rdy);
       if (dist < 1) continue;
 
-      const scale = Math.min(dist, 60) * alpha * 0.5 / dist;
+      const scale = Math.min(dist, 60) * alpha * 0.8 / dist;
       mover.vx += rdx * scale;
       mover.vy += rdy * scale;
     }
@@ -163,12 +163,11 @@ export const GraphView: React.FC<GraphViewProps> = ({ graphData, selectedNode, o
       const sqrtN = Math.sqrt(Math.max(1, n));
       // Stronger repulsion with more nodes; distanceMax scales so distant clusters still spread
       const chargeStrength = -Math.max(400, 75 * sqrtN);
-      const distanceMax = Math.max(500, 55 * sqrtN);
       // Leaf nodes cluster tightly; file-to-file edges get more room in larger graphs
       const leafDist = Math.max(30, 80 - sqrtN * 1.5);
       const fileDist = Math.max(100, 60 + sqrtN * 4);
 
-      fgRef.current.d3Force('charge').strength(chargeStrength).distanceMax(distanceMax);
+      fgRef.current.d3Force('charge').strength(chargeStrength);
       fgRef.current.d3Force('link').distance((link: any) => {
         const src = link.source;
         const tgt = link.target;
@@ -182,13 +181,13 @@ export const GraphView: React.FC<GraphViewProps> = ({ graphData, selectedNode, o
       });
       fgRef.current.d3Force('collide', d3.forceCollide().radius((node: any) => {
         const radius = Math.sqrt(node.val || 1) * 2;
-        return radius + 25;
+        return radius + 10;
       }));
 
       const ranks = computeRanks(graphData.nodes, graphData.links);
-      fgRef.current.d3Force('crossReduce', forceCrossingReduction(ranks, fgRef));
+      fgRef.current.d3Force('crossReduce', forceCrossingReduction(ranks, fgRef, 1500));
     }
-  }, [graphData.nodes.length]);
+  }, [graphData.nodes.length, graphData.links]);
 
   const fadeOpacityRef = useRef(1.0);
   const fadeRequestId = useRef<number | null>(null);
@@ -599,7 +598,6 @@ export const GraphView: React.FC<GraphViewProps> = ({ graphData, selectedNode, o
         }}
         linkWidth={(link) => highlightLinks.has(link as LinkData) ? 2.0 : 0.8}
         d3AlphaDecay={0.02}
-        cooldownTicks={100}
       />
     </div>
   );
