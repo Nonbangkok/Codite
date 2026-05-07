@@ -21,15 +21,29 @@ The system is decoupled into two main components communicating via JSON:
 - **Output:** Generates a structured JSON file containing `nodes` and `edges`.
 
 ### 2. Visualization UI (Frontend)
-- **Framework:** React / Svelte.
+- **Framework:** React / Vite.
 - **Rendering Engine:** D3.js / `react-force-graph` utilizing HTML5 Canvas for performance.
 - **Aesthetic:** Designed to provide an intuitive, "Obsidian-like" feel with natural physics, color-coded directories, and interactive focus modes.
 
-## 🚀 Getting Started (MVP Scope)
+## 🚀 Getting Started
 
-Currently, the project is focusing on a Minimum Viable Product (MVP) prioritizing **Rust** codebases at the **File & Function** level.
+To run AtloGraph locally, follow these steps:
 
-*More detailed installation and usage instructions will be added as the MVP develops.*
+### Prerequisites
+- [Rust](https://www.rust-lang.org/tools/install) (latest stable)
+- [Node.js](https://nodejs.org/) (v18 or higher) & npm
+
+### 1. Generate Graph Data (Analyzer)
+The analyzer scans your source code and generates the visualization data.
+1. Navigate to the analyzer directory: `cd analyzer`
+2. Configure the target directory in `Cargo.toml` under `[package.metadata.atlograph]`.
+3. Run the scanner: `cargo run`
+
+### 2. Run the Visualization (UI)
+1. Navigate to the UI directory: `cd ui`
+2. Install dependencies: `npm install`
+3. Start the dev server: `npm run dev`
+4. View the graph at [http://localhost:5173](http://localhost:5173).
 
 ## 🤝 Contributing
 
@@ -37,4 +51,4 @@ We welcome contributions! Please see our [CONTRIBUTING.md](CONTRIBUTING.md) for 
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the **GNU General Public License v3.0** - see the [LICENSE](LICENSE) file for details.
