@@ -1,7 +1,18 @@
 import React, { useCallback, useState, useEffect, useRef } from 'react';
 import ForceGraph2D from 'react-force-graph-2d';
+import type { ForceGraphMethods, LinkObject, NodeObject } from 'react-force-graph-2d';
 import * as d3 from 'd3';
 import type { GraphData, NodeData, LinkData } from '../types';
+import {
+  createCrossingReductionForce,
+  createDegreeMap,
+  getCollisionRadius,
+  getGraphChargeStrength,
+  getGraphLinkDistance,
+  getGraphLinkStrength,
+  type SimLink,
+  type SimNode,
+} from '../utils/graphLayout';
 
 interface GraphViewProps {
   graphData: GraphData;
@@ -9,6 +20,18 @@ interface GraphViewProps {
   onNodeSelect: (node: NodeData | null) => void;
   customWidthOffset?: number;
 }
+
+type ZoomTransform = { x: number; y: number; k: number };
+type LinkForceHandle = {
+  distance: (distance: (link: SimLink) => number) => LinkForceHandle;
+  strength: (strength: (link: SimLink) => number) => LinkForceHandle;
+  iterations: (iterations: number) => LinkForceHandle;
+  links: () => SimLink[];
+};
+type ChargeForceHandle = {
+  strength: (strength: (node: SimNode) => number) => ChargeForceHandle;
+};
+type ForceGraphRef = ForceGraphMethods<NodeObject<NodeData>, LinkObject<NodeData, LinkData>>;
 
 // Pre-parsed RGB tuples — avoids d3.color() object creation on every canvas frame
 const TYPE_RGB: Record<string, readonly [number, number, number]> = {
@@ -30,104 +53,6 @@ const HOVER_RGB: readonly [number, number, number] = [244, 214, 118];
 const rgbaStr = (rgb: readonly [number, number, number], a: number) =>
   `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${a})`;
 
-const LEAF_GROUPS = new Set(['functions', 'structs', 'enums', 'traits']);
-
-// BFS from file nodes outward; file nodes get rank 0, leaves get rank 1+
-function computeRanks(nodes: any[], links: any[]): Map<string, number> {
-  const ranks = new Map<string, number>();
-  const adj = new Map<string, string[]>();
-  for (const n of nodes) adj.set(n.id, []);
-  for (const l of links) {
-    const s = typeof l.source === 'object' ? l.source.id : l.source;
-    const t = typeof l.target === 'object' ? l.target.id : l.target;
-    adj.get(s)?.push(t);
-    adj.get(t)?.push(s);
-  }
-  const queue: string[] = [];
-  for (const n of nodes) {
-    if (!LEAF_GROUPS.has(n.group)) { ranks.set(n.id, 0); queue.push(n.id); }
-  }
-  let head = 0;
-  while (head < queue.length) {
-    const id = queue[head++];
-    const r = ranks.get(id)!;
-    for (const nb of adj.get(id) || []) {
-      if (!ranks.has(nb)) { ranks.set(nb, r + 1); queue.push(nb); }
-    }
-  }
-  return ranks;
-}
-
-// Each tick samples random edge pairs; when two edges cross, the node with the
-// highest rank (furthest from a file root) is reflected across the other edge.
-function forceCrossingReduction(ranks: Map<string, number>, fgRef: React.MutableRefObject<any>, samplesPerTick = 800) {
-  function ccw(ax: number, ay: number, bx: number, by: number, cx: number, cy: number) {
-    return (cy - ay) * (bx - ax) > (by - ay) * (cx - ax);
-  }
-  function crosses(ax: number, ay: number, bx: number, by: number,
-    cx: number, cy: number, dx: number, dy: number) {
-    return ccw(ax, ay, cx, cy, dx, dy) !== ccw(bx, by, cx, cy, dx, dy) &&
-      ccw(ax, ay, bx, by, cx, cy) !== ccw(ax, ay, bx, by, dx, dy);
-  }
-  function reflect(px: number, py: number, ax: number, ay: number, bx: number, by: number) {
-    const ex = bx - ax, ey = by - ay, lenSq = ex * ex + ey * ey;
-    if (lenSq < 1) return null;
-    const t = ((px - ax) * ex + (py - ay) * ey) / lenSq;
-    return { x: 2 * (ax + t * ex) - px, y: 2 * (ay + t * ey) - py };
-  }
-
-  // Cache the resolved link array after first access (avoids repeated d3Force lookup per tick)
-  let cachedLinks: any[] | null = null;
-
-  function force(this: any, alpha: number) {
-    if (alpha < 0.005) return;
-    if (!cachedLinks) {
-      cachedLinks = fgRef.current?.d3Force('link')?.links() ?? null;
-      if (!cachedLinks) return;
-    }
-    const simLinks = cachedLinks;
-    const n = simLinks.length;
-    if (n < 2) return;
-    const checks = Math.min(samplesPerTick, (n * (n - 1)) >> 1);
-    for (let k = 0; k < checks; k++) {
-      const i = Math.floor(Math.random() * n);
-      let j = Math.floor(Math.random() * (n - 1));
-      if (j >= i) j++;
-      const l1 = simLinks[i], l2 = simLinks[j];
-      const a = l1.source, b = l1.target, c = l2.source, d = l2.target;
-      if (!a?.x || !b?.x || !c?.x || !d?.x) continue;
-      if (a === c || a === d || b === c || b === d) continue;
-      if (!crosses(a.x, a.y, b.x, b.y, c.x, c.y, d.x, d.y)) continue;
-
-      // No-alloc max-rank search — avoids filter/sort array allocation per crossing
-      let mover: any = null, moverRank = -1, moverOnL2 = false;
-      const tryNode = (node: any, onL2: boolean) => {
-        if (node.fx != null) return;
-        const r = ranks.get(node.id) ?? 0;
-        if (r > moverRank) { mover = node; moverRank = r; moverOnL2 = onL2; }
-      };
-      tryNode(a, false); tryNode(b, false); tryNode(c, true); tryNode(d, true);
-      if (!mover) continue;
-
-      const ref = moverOnL2
-        ? reflect(mover.x, mover.y, a.x, a.y, b.x, b.y)
-        : reflect(mover.x, mover.y, c.x, c.y, d.x, d.y);
-      if (!ref) continue;
-
-      const rdx = ref.x - mover.x, rdy = ref.y - mover.y;
-      const dist = Math.sqrt(rdx * rdx + rdy * rdy);
-      if (dist < 1) continue;
-
-      const scale = Math.min(dist, 60) * alpha * 0.8 / dist;
-      mover.vx += rdx * scale;
-      mover.vy += rdy * scale;
-    }
-  }
-
-  (force as any).initialize = () => { cachedLinks = null; };
-  return force;
-}
-
 // Configuration
 const CONFIG = {
   // Pan momentum
@@ -147,8 +72,9 @@ export const GraphView: React.FC<GraphViewProps> = ({ graphData, selectedNode, o
   const [hoverNode, setHoverNode] = useState<NodeData | null>(null);
   const [highlightNodes, setHighlightNodes] = useState<Set<string>>(new Set());
   const [highlightLinks, setHighlightLinks] = useState<Set<LinkData>>(new Set());
+  const [showNodeNames, setShowNodeNames] = useState(false);
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
-  const fgRef = useRef<any>(null);
+  const fgRef = useRef<ForceGraphRef | undefined>(undefined);
 
   useEffect(() => {
     const handleResize = () => setWindowWidth(window.innerWidth);
@@ -159,35 +85,29 @@ export const GraphView: React.FC<GraphViewProps> = ({ graphData, selectedNode, o
   // ปรับแต่งแรงผลักและระยะห่างของ d3-force
   useEffect(() => {
     if (fgRef.current) {
-      const n = graphData.nodes.length;
-      const sqrtN = Math.sqrt(Math.max(1, n));
-      // Stronger repulsion with more nodes; distanceMax scales so distant clusters still spread
-      const chargeStrength = -Math.max(400, 75 * sqrtN);
-      // Leaf nodes cluster tightly; file-to-file edges get more room in larger graphs
-      const leafDist = Math.max(30, 80 - sqrtN * 1.5);
-      const fileDist = Math.max(100, 60 + sqrtN * 4);
+      const nodes = graphData.nodes as SimNode[];
+      const links = graphData.links as SimLink[];
+      const sqrtNodeCount = Math.sqrt(Math.max(1, nodes.length));
+      const degree = createDegreeMap(nodes, links);
+      const chargeForce = fgRef.current.d3Force('charge') as unknown as ChargeForceHandle;
+      const linkForce = fgRef.current.d3Force('link') as unknown as LinkForceHandle;
 
-      fgRef.current.d3Force('charge').strength(chargeStrength);
-      fgRef.current.d3Force('link').distance((link: any) => {
-        const src = link.source;
-        const tgt = link.target;
-        const srcGroup = typeof src === 'object' ? src.group : null;
-        const tgtGroup = typeof tgt === 'object' ? tgt.group : null;
-        const isLeafLink = srcGroup === 'functions' || tgtGroup === 'functions'
-          || srcGroup === 'structs' || tgtGroup === 'structs'
-          || srcGroup === 'enums' || tgtGroup === 'enums'
-          || srcGroup === 'traits' || tgtGroup === 'traits';
-        return isLeafLink ? leafDist : fileDist;
-      });
-      fgRef.current.d3Force('collide', d3.forceCollide().radius((node: any) => {
-        const radius = Math.sqrt(node.val || 1) * 2;
-        return radius + 10;
-      }));
-
-      const ranks = computeRanks(graphData.nodes, graphData.links);
-      fgRef.current.d3Force('crossReduce', forceCrossingReduction(ranks, fgRef, 1500));
+      chargeForce.strength((node: SimNode) => (
+        getGraphChargeStrength(node, degree)
+      ));
+      linkForce
+        .distance((link: SimLink) => getGraphLinkDistance(link, sqrtNodeCount))
+        .strength((link: SimLink) => getGraphLinkStrength(link))
+        .iterations(2);
+      fgRef.current.d3Force('collide', d3.forceCollide<SimNode>()
+        .radius((node) => getCollisionRadius(node))
+        .iterations(1));
+      fgRef.current.d3Force('x', d3.forceX(0).strength(0.012));
+      fgRef.current.d3Force('y', d3.forceY(0).strength(0.012));
+      fgRef.current.d3Force('crossReduce', createCrossingReductionForce(linkForce.links(), 1200));
+      fgRef.current.d3ReheatSimulation?.();
     }
-  }, [graphData.nodes.length, graphData.links]);
+  }, [graphData.nodes, graphData.links]);
 
   const fadeOpacityRef = useRef(1.0);
   const fadeRequestId = useRef<number | null>(null);
@@ -404,7 +324,7 @@ export const GraphView: React.FC<GraphViewProps> = ({ graphData, selectedNode, o
   }, [selectedNode, cancelMomentum, cancelSmoothZoom, setProgrammatic]);
 
   // ฟังก์ชันคำนวณ Pan Velocity ระหว่างการลาก
-  const handleZoom = useCallback((transform: any) => {
+  const handleZoom = useCallback((transform: ZoomTransform | null) => {
     if (isProgrammatic.current || !transform || typeof transform.x !== 'number') return;
 
     isUserInteracting.current = true;
@@ -435,7 +355,7 @@ export const GraphView: React.FC<GraphViewProps> = ({ graphData, selectedNode, o
   }, [cancelMomentum]);
 
   // ฟังก์ชันคำนวณ Pan Momentum เมื่อหยุดลาก (Glide)
-  const handleZoomEnd = useCallback((transform: any) => {
+  const handleZoomEnd = useCallback((transform: ZoomTransform | null) => {
     isUserInteracting.current = false;
 
     if (isProgrammatic.current || !transform || !fgRef.current) {
@@ -532,7 +452,7 @@ export const GraphView: React.FC<GraphViewProps> = ({ graphData, selectedNode, o
 
     if (node) {
       newHighlightNodes.add(node.id);
-      graphData.links.forEach((link: any) => {
+      graphData.links.forEach((link) => {
         const sourceId = typeof link.source === 'object' ? link.source.id : link.source;
         const targetId = typeof link.target === 'object' ? link.target.id : link.target;
         if (sourceId === node.id || targetId === node.id) {
@@ -548,8 +468,10 @@ export const GraphView: React.FC<GraphViewProps> = ({ graphData, selectedNode, o
     setHighlightLinks(newHighlightLinks);
   }, [graphData.links]);
 
-  const paintNode = useCallback((node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
-    const radius = Math.sqrt(node.val || 1) * 2;
+  const paintNode = useCallback((node: SimNode, ctx: CanvasRenderingContext2D) => {
+    const x = node.x ?? 0;
+    const y = node.y ?? 0;
+    const radius = Math.sqrt(node.val || 1) * 1.3;
     const isHighlighted = highlightNodes.has(node.id);
     const isSelected = selectedNode?.id === node.id;
     const isHovered = hoverNode?.id === node.id;
@@ -564,21 +486,87 @@ export const GraphView: React.FC<GraphViewProps> = ({ graphData, selectedNode, o
     const fill = rgbaStr(rgb, isHighlighted ? 1 : fadeOpacityRef.current);
 
     ctx.beginPath();
-    ctx.arc(node.x, node.y, radius, 0, 2 * Math.PI, false);
+    ctx.arc(x, y, radius, 0, 2 * Math.PI, false);
     ctx.fillStyle = fill;
     ctx.fill();
 
-    if (globalScale > 0.6 || isHighlighted || isSelected) {
-      ctx.font = `normal 10px Inter, sans-serif`;
+    if (showNodeNames || isHighlighted || isSelected) {
+      const label = (isHighlighted || isSelected) ? node.label : (node.label.length > 20 ? node.label.slice(0, 18) + '...' : node.label);
+      const fontSize = Math.max(5, 11 - (label.length * 0.25));
+      ctx.font = `normal ${fontSize}px Inter, sans-serif`;
+
+      // const textWidth = ctx.measureText(label).width;
+      // const boxWidth = textWidth + 10;
+      // const boxHeight = fontSize + 7;
+      // const boxX = x - boxWidth / 2;
+      // const boxY = y + radius + 4;
+
+      // ctx.beginPath();
+      // ctx.roundRect(boxX, boxY, boxWidth, boxHeight, 4);
+      // ctx.fillStyle = rgbaStr([13, 17, 23], isHighlighted || isSelected ? 0.9 : 0.72);
+      // ctx.fill();
+      // ctx.strokeStyle = rgbaStr(rgb, isHighlighted || isSelected ? 0.65 : 0.28);
+      // ctx.lineWidth = 0.8 / Math.max(globalScale, 0.8);
+      // ctx.stroke();
+
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
+      // ctx.textBaseline = 'middle';
       ctx.fillStyle = fill;
-      ctx.fillText(node.label, node.x, node.y + radius + 1.5);
+      ctx.fillText(label, x, y + radius + 1.5);
+      // ctx.fillText(label, x, boxY + boxHeight / 2 + 0.5);
     }
-  }, [hoverNode, highlightNodes, selectedNode]);
+  }, [hoverNode, highlightNodes, selectedNode, showNodeNames]);
 
   return (
-    <div ref={containerRef} style={{ width: '100%', height: '100%' }}>
+    <div ref={containerRef} style={{ width: '100%', height: '100%', position: 'relative' }}>
+      <button
+        type="button"
+        onClick={() => setShowNodeNames(prev => !prev)}
+        style={{
+          position: 'absolute',
+          top: 20,
+          right: 20,
+          zIndex: 12,
+          border: '1px solid rgba(255,255,255,0.12)',
+          borderRadius: '6px',
+          background: showNodeNames ? 'rgba(244, 214, 118, 0.16)' : 'rgba(22, 22, 24, 0.82)',
+          color: showNodeNames ? '#f4d676' : '#a2a7b6',
+          fontFamily: 'Inter, sans-serif',
+          fontSize: '0.75rem',
+          fontWeight: 600,
+          padding: '7px 10px',
+          cursor: 'pointer',
+          backdropFilter: 'blur(8px)'
+        }}
+      >
+        Names {showNodeNames ? 'On' : 'Off'}
+      </button>
+      {hoverNode && (
+        <div
+          style={{
+            position: 'absolute',
+            right: 20,
+            bottom: 20,
+            zIndex: 12,
+            maxWidth: '280px',
+            background: 'rgba(13, 17, 23, 0.94)',
+            padding: '9px 12px',
+            borderRadius: '6px',
+            border: '1px solid rgba(255,255,255,0.1)',
+            boxShadow: '0 6px 18px rgba(0,0,0,0.45)',
+            pointerEvents: 'none',
+            fontFamily: 'Inter, sans-serif'
+          }}
+        >
+          <div style={{ color: '#8b949e', fontSize: '0.68rem', marginBottom: '3px', textTransform: 'uppercase' }}>
+            {hoverNode.group}
+          </div>
+          <div style={{ color: '#e6edf3', fontSize: '0.82rem', fontWeight: 600, lineHeight: 1.3, wordBreak: 'break-word' }}>
+            {hoverNode.label}
+          </div>
+        </div>
+      )}
       <ForceGraph2D
         ref={fgRef}
         width={windowWidth - customWidthOffset - 260}
