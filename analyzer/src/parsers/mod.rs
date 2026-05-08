@@ -4,6 +4,8 @@ pub use rust::RustParser;
 pub mod typescript;
 pub use typescript::TypeScriptParser;
 
+pub mod import_resolver;
+
 use std::path::Path;
 
 use crate::models::{Link, Node};

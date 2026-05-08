@@ -30,3 +30,25 @@ fn typescript_parser_extracts_all_constructs() {
     assert_eq!(count_group(&nodes, "enums"), 1);
     assert_eq!(count_group(&nodes, "imports"), 2);
 }
+
+#[test]
+fn typescript_parser_resolves_relative_import_to_file_link() {
+    let parser = TypeScriptParser;
+    let mut nodes: Vec<Node> = Vec::new();
+    let mut links: Vec<Link> = Vec::new();
+
+    parser.parse(&fixture("typescript/sample.ts"), &mut nodes, &mut links);
+
+    let imported_path = fixture("typescript/imported.ts").to_string_lossy().into_owned();
+    let module_links: Vec<&Link> = links
+        .iter()
+        .filter(|l| l.link_type == "imports_module")
+        .collect();
+
+    assert!(
+        module_links.iter().any(|l| l.target == imported_path),
+        "expected an imports_module link to {}, got {:?}",
+        imported_path,
+        module_links
+    );
+}

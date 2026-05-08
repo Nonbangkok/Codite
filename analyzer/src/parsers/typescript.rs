@@ -197,9 +197,19 @@ impl LanguageParser for TypeScriptParser {
                         });
                         links.push(Link {
                             source: full_path.clone(),
-                            target: id,
+                            target: id.clone(),
                             link_type: "imports".to_string(),
                         });
+
+                        if let Some(spec) = crate::parsers::import_resolver::extract_specifier(full_content) {
+                            if let Some(resolved) = crate::parsers::import_resolver::resolve_relative(path, &spec) {
+                                links.push(Link {
+                                    source: full_path.clone(),
+                                    target: resolved.to_string_lossy().into_owned(),
+                                    link_type: "imports_module".to_string(),
+                                });
+                            }
+                        }
                     }
                     _ => {}
                 }
