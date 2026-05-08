@@ -7,6 +7,9 @@ pub use typescript::TypeScriptParser;
 pub mod javascript;
 pub use javascript::JavaScriptParser;
 
+pub mod python;
+pub use python::PythonParser;
+
 pub mod import_resolver;
 
 use std::path::Path;

@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use analyzer::models::{Link, Node};
-use analyzer::parsers::{LanguageParser, TypeScriptParser, JavaScriptParser};
+use analyzer::parsers::{LanguageParser, TypeScriptParser, JavaScriptParser, PythonParser};
 
 fn fixture(rel: &str) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -81,4 +81,18 @@ fn javascript_parser_extracts_constructs_and_tags_language() {
     assert_eq!(count_group(&nodes, "functions"), 3, "add() + increment() + subtract() (constructor excluded)");
     assert_eq!(count_group(&nodes, "classes"), 1);
     assert_eq!(count_group(&nodes, "imports"), 1);
+}
+
+#[test]
+fn python_parser_extracts_constructs_and_tags_language() {
+    let parser = PythonParser;
+    let mut nodes: Vec<Node> = Vec::new();
+    let mut links: Vec<Link> = Vec::new();
+
+    parser.parse(&fixture("python/sample.py"), &mut nodes, &mut links);
+
+    assert!(nodes.iter().all(|n| n.language == "python"));
+    assert_eq!(count_group(&nodes, "functions"), 4, "expected __init__ + my_method + my_function + decorated_function");
+    assert_eq!(count_group(&nodes, "classes"), 1);
+    assert_eq!(count_group(&nodes, "imports"), 2);
 }

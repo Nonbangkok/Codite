@@ -2,6 +2,8 @@
 name = "analyzer"
 version = "0.1.0"
 edition = "2024"
+authors = ["Nonbangkok"]
+description = "Code Dependency Analyzer"
 
 [package.metadata.codite]
 default_scan_dir = ".."
@@ -21,6 +23,7 @@ tree-sitter = "0.26.8"
 tree-sitter-rust = "0.24.2"
 tree-sitter-typescript = "0.23"
 tree-sitter-javascript = "0.23"
+tree-sitter-python = "0.23"
 walkdir = "2.5.0"
 
 [build-dependencies]
