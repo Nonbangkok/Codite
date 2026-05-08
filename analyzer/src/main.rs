@@ -4,6 +4,7 @@ use std::fs;
 use analyzer::models::GraphData;
 use analyzer::parsers::{LanguageParser, RustParser, TypeScriptParser, JavaScriptParser, PythonParser, all_extensions, parser_for_path};
 use analyzer::scanner;
+use indicatif::{ProgressBar, ProgressStyle};
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -24,12 +25,25 @@ fn main() {
     let mut links = Vec::new();
 
     let files = scanner::find_source_files(target_dir, &extensions);
+    let total_files = files.len();
+
+    let pb = ProgressBar::new(total_files as u64);
+    pb.set_style(ProgressStyle::default_bar()
+        .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({percent}%) {msg}")
+        .unwrap()
+        .progress_chars("#>-"));
+    pb.enable_steady_tick(std::time::Duration::from_millis(100));
 
     for file in files {
+        let display_path = file.strip_prefix(target_dir).unwrap_or(&file).to_string_lossy();
+        pb.set_message(format!("{}", display_path));
+        
         if let Some(parser) = parser_for_path(&file, &registry) {
             parser.parse(&file, &mut nodes, &mut links);
         }
+        pb.inc(1);
     }
+    pb.finish_with_message("Scan completed successfully");
 
     let graph = GraphData { nodes, links };
 
