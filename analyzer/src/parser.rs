@@ -19,6 +19,7 @@ pub fn parse_rust_file(path: &Path, nodes: &mut Vec<Node>, links: &mut Vec<Link>
         id: full_path.clone(),
         label: file_name,
         group: group.clone(),
+        language: "rust".to_string(),
         val: 20,
         code: source_code.clone(),
     });
@@ -79,6 +80,7 @@ pub fn parse_rust_file(path: &Path, nodes: &mut Vec<Node>, links: &mut Vec<Link>
                                 id: id.clone(),
                                 label: format!("{}()", name),
                                 group: "functions".to_string(),
+                                language: "rust".to_string(),
                                 val: 8,
                                 code: Some(full_content.to_string()),
                             });
@@ -97,6 +99,7 @@ pub fn parse_rust_file(path: &Path, nodes: &mut Vec<Node>, links: &mut Vec<Link>
                                 id: id.clone(),
                                 label: name.to_string(),
                                 group: "structs".to_string(),
+                                language: "rust".to_string(),
                                 val: 12,
                                 code: Some(full_content.to_string()),
                             });
@@ -115,6 +118,7 @@ pub fn parse_rust_file(path: &Path, nodes: &mut Vec<Node>, links: &mut Vec<Link>
                                 id: id.clone(),
                                 label: name.to_string(),
                                 group: "enums".to_string(),
+                                language: "rust".to_string(),
                                 val: 10,
                                 code: Some(full_content.to_string()),
                             });
@@ -133,6 +137,7 @@ pub fn parse_rust_file(path: &Path, nodes: &mut Vec<Node>, links: &mut Vec<Link>
                                 id: id.clone(),
                                 label: name.to_string(),
                                 group: "traits".to_string(),
+                                language: "rust".to_string(),
                                 val: 14,
                                 code: Some(full_content.to_string()),
                             });
@@ -152,15 +157,16 @@ pub fn parse_rust_file(path: &Path, nodes: &mut Vec<Node>, links: &mut Vec<Link>
                         });
                     },
                     "use" => {
-                        if !full_content.contains("std::") && 
-                           !full_content.contains("serde") && 
-                           !full_content.contains("tree_sitter") && 
+                        if !full_content.contains("std::") &&
+                           !full_content.contains("serde") &&
+                           !full_content.contains("tree_sitter") &&
                            !full_content.contains("walkdir") {
                             let id = format!("{}::use::{}", full_path, full_content);
                             nodes.push(Node {
                                 id: id.clone(),
                                 label: full_content.replace("use ", "").replace(";", ""),
                                 group: "imports".to_string(),
+                                language: "rust".to_string(),
                                 val: 5,
                                 code: Some(full_content.to_string()),
                             });
