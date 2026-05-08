@@ -6,7 +6,7 @@ use std::env;
 use std::fs;
 
 use models::GraphData;
-use parsers::{LanguageParser, RustParser, all_extensions, parser_for_path};
+use parsers::{LanguageParser, RustParser, TypeScriptParser, all_extensions, parser_for_path};
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -15,7 +15,10 @@ fn main() {
 
     println!("Scanning directory: {}", target_dir);
 
-    let registry: Vec<Box<dyn LanguageParser>> = vec![Box::new(RustParser)];
+    let registry: Vec<Box<dyn LanguageParser>> = vec![
+        Box::new(RustParser),
+        Box::new(TypeScriptParser),
+    ];
     let extensions = all_extensions(&registry);
 
     let mut nodes = Vec::new();

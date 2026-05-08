@@ -1,6 +1,9 @@
 pub mod rust;
 pub use rust::RustParser;
 
+pub mod typescript;
+pub use typescript::TypeScriptParser;
+
 use std::path::Path;
 
 use crate::models::{Link, Node};
