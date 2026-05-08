@@ -1,18 +1,18 @@
-# Contributing to AtloGraph
+# Contributing to Codite
 
-First off, thank you for considering contributing to AtloGraph! It's people like you that make open-source software such a great community to learn, inspire, and create.
+First off, thank you for considering contributing to Codite! It's people like you that make open-source software such a great community to learn, inspire, and create.
 
 ## How Can I Contribute?
 
 ### Reporting Bugs
-This section guides you through submitting a bug report for AtloGraph.
+This section guides you through submitting a bug report for Codite.
 *   Make sure you are testing against the latest version.
 *   Check if the bug has already been reported in the issues list.
 *   Provide a clear and descriptive title for the issue.
 *   Describe the exact steps to reproduce the problem.
 
 ### Suggesting Enhancements
-This section guides you through submitting an enhancement suggestion for AtloGraph, including completely new features and minor improvements to existing functionality.
+This section guides you through submitting an enhancement suggestion for Codite, including completely new features and minor improvements to existing functionality.
 *   Check if the enhancement has already been suggested.
 *   Provide a clear and descriptive title.
 *   Provide a step-by-step description of the suggested enhancement.
@@ -20,7 +20,7 @@ This section guides you through submitting an enhancement suggestion for AtloGra
 
 ### Pull Requests
 The process described here has several goals:
-*   Maintain AtloGraph's quality.
+*   Maintain Codite's quality.
 *   Fix problems that are important to users.
 *   Engage the community in working toward the best possible codebase visualizer.
 

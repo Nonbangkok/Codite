@@ -11,7 +11,7 @@ fn main() {
     let default_dir = value
         .get("package")
         .and_then(|v| v.get("metadata"))
-        .and_then(|v| v.get("atlograph"))
+        .and_then(|v| v.get("codite"))
         .and_then(|v| v.get("default_scan_dir"))
         .and_then(|v| v.as_str())
         .unwrap_or(".");

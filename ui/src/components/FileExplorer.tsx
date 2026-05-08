@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Folder, FileText, ChevronRight, ChevronDown, Filter, X } from 'lucide-react';
+import { Folder, FileText, ChevronRight, ChevronDown, X } from 'lucide-react';
 import type { FileTreeItem } from '../utils/treeUtils';
 
 interface FileExplorerProps {
@@ -16,7 +16,7 @@ const TreeItem: React.FC<{
   onFolderSelect: (path: string | null) => void;
   onFileSelect: (id: string) => void;
 }> = ({ item, level, activeFolderPath, onFolderSelect, onFileSelect }) => {
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
   const isSelected = activeFolderPath === item.path;
 
   const handleClick = (e: React.MouseEvent) => {
@@ -91,34 +91,65 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({ tree, activeFolderPa
       flexShrink: 0
     }}>
       <div style={{ 
-        padding: '16px', 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center',
-        borderBottom: '1px solid rgba(255, 255, 255, 0.03)'
+        padding: '20px 16px', 
+        borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+        background: 'rgba(255, 255, 255, 0.01)'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', color: '#94a3b8', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-          <Filter size={14} style={{ marginRight: '8px' }} />
-          Explorer
-        </div>
-        {activeFolderPath && (
-          <button
-            onClick={() => onFolderSelect(null)}
-            style={{
-              background: 'rgba(244, 214, 118, 0.1)',
-              border: 'none',
-              color: '#f4d676',
-              borderRadius: '4px',
-              padding: '2px 6px',
-              fontSize: '0.65rem',
-              cursor: 'pointer',
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <div style={{ 
               display: 'flex',
-              alignItems: 'center'
-            }}
-          >
-            Clear <X size={10} style={{ marginLeft: '4px' }} />
-          </button>
-        )}
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <img src="/logo.svg" alt="Codite Logo" style={{ width: '32px', height: '32px' }} />
+            </div>
+            <h1 style={{ 
+              margin: 0, 
+              fontSize: '1.2rem', 
+              fontWeight: 800, 
+              color: '#f8fafc',
+              letterSpacing: '-0.03em',
+              textTransform: 'uppercase'
+            }}>Codite</h1>
+          </div>
+          
+          {activeFolderPath && (
+            <button
+              onClick={() => onFolderSelect(null)}
+              title="Clear filter"
+              style={{
+                background: 'rgba(244, 214, 118, 0.1)',
+                border: '1px solid rgba(244, 214, 118, 0.2)',
+                color: '#f4d676',
+                borderRadius: '6px',
+                padding: '4px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(244, 214, 118, 0.2)'}
+              onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(244, 214, 118, 0.1)'}
+            >
+              <X size={14} />
+            </button>
+          )}
+        </div>
+        
+        <p style={{ 
+          margin: 0, 
+          fontSize: '0.7rem', 
+          color: '#64748b', 
+          fontWeight: 500,
+          lineHeight: '1.4'
+        }}>
+          {activeFolderPath ? (
+            <span style={{ color: '#f4d676' }}>Scope: {activeFolderPath.split('/').pop()}</span>
+          ) : (
+            "Visualizing Your Codebase"
+          )}
+        </p>
       </div>
 
       <div style={{ flex: 1, overflowY: 'auto', padding: '12px 8px' }}>

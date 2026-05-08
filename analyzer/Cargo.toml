@@ -3,8 +3,8 @@ name = "analyzer"
 version = "0.1.0"
 edition = "2024"
 
-[package.metadata.atlograph]
-default_scan_dir = "../Panos/src"
+[package.metadata.codite]
+default_scan_dir = ".."
 
 [lib]
 name = "analyzer"

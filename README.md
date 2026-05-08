@@ -1,6 +1,10 @@
-# AtloGraph
+# Codite
 
-**AtloGraph** is a multi-language codebase visualizer designed to transform complex source code into beautiful, interactive, and comprehensible graphs. It helps developers quickly understand project architecture, dependencies, and code structure without having to manually read through thousands of lines of code.
+<p align="center">
+  <img src="assets/logo.png" alt="Codite Logo" width="350" />
+</p>
+
+**Codite** is a multi-language codebase visualizer designed to transform complex source code into beautiful, interactive, and comprehensible graphs. It helps developers quickly understand project architecture, dependencies, and code structure without having to manually read through thousands of lines of code.
 
 ---
 
@@ -27,7 +31,7 @@ The system is decoupled into two main components communicating via JSON:
 
 ## 🚀 Getting Started
 
-To run AtloGraph locally, follow these steps:
+To run Codite locally, follow these steps:
 
 ### Prerequisites
 - [Rust](https://www.rust-lang.org/tools/install) (latest stable)
@@ -36,7 +40,7 @@ To run AtloGraph locally, follow these steps:
 ### 1. Generate Graph Data (Analyzer)
 The analyzer scans your source code and generates the visualization data.
 1. Navigate to the analyzer directory: `cd analyzer`
-2. Configure the target directory in `Cargo.toml` under `[package.metadata.atlograph]`.
+2. Configure the target directory in `Cargo.toml` under `[package.metadata.codite]`.
 3. Run the scanner: `cargo run`
 
 ### 2. Run the Visualization (UI)
