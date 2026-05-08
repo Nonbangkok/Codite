@@ -19,6 +19,7 @@ interface GraphViewProps {
   selectedNode: NodeData | null;
   onNodeSelect: (node: NodeData | null) => void;
   customWidthOffset?: number;
+  colorMode: 'group' | 'language';
 }
 
 type ZoomTransform = { x: number; y: number; k: number };
@@ -39,14 +40,31 @@ const TYPE_RGB: Record<string, readonly [number, number, number]> = {
   structs: [97, 175, 239],
   enums: [198, 120, 221],
   traits: [152, 195, 121],
+  classes: [86, 182, 194],
+  interfaces: [152, 195, 121],
+  types: [224, 108, 117],
   default: [162, 167, 182],
 };
-// Brightened ~0.5 stops (approx d3.brighter(0.5), channels * 1.195, capped at 255)
 const TYPE_RGB_BRIGHT: Record<string, readonly [number, number, number]> = {
   functions: [249, 183, 121],
   structs: [115, 209, 255],
   enums: [236, 143, 255],
   traits: [181, 233, 144],
+  classes: [102, 217, 232],
+  interfaces: [181, 233, 144],
+  types: [255, 129, 140],
+  default: [193, 199, 217],
+};
+const LANGUAGE_RGB: Record<string, readonly [number, number, number]> = {
+  rust: [222, 165, 132],
+  typescript: [49, 120, 198],
+  javascript: [247, 223, 30],
+  default: [162, 167, 182],
+};
+const LANGUAGE_RGB_BRIGHT: Record<string, readonly [number, number, number]> = {
+  rust: [255, 197, 158],
+  typescript: [80, 159, 240],
+  javascript: [255, 248, 100],
   default: [193, 199, 217],
 };
 const HOVER_RGB: readonly [number, number, number] = [244, 214, 118];
@@ -68,7 +86,7 @@ const CONFIG = {
   frameInterval: 16,       // ~60fps
 };
 
-export const GraphView: React.FC<GraphViewProps> = ({ graphData, selectedNode, onNodeSelect, customWidthOffset = 0 }) => {
+export const GraphView: React.FC<GraphViewProps> = ({ graphData, selectedNode, onNodeSelect, customWidthOffset = 0, colorMode }) => {
   const [hoverNode, setHoverNode] = useState<NodeData | null>(null);
   const [highlightNodes, setHighlightNodes] = useState<Set<string>>(new Set());
   const [highlightLinks, setHighlightLinks] = useState<Set<LinkData>>(new Set());
@@ -477,11 +495,15 @@ export const GraphView: React.FC<GraphViewProps> = ({ graphData, selectedNode, o
     const isHovered = hoverNode?.id === node.id;
     const isNeighbor = hoverNode && isHighlighted && !isHovered;
 
+    const palette = colorMode === 'language' ? LANGUAGE_RGB : TYPE_RGB;
+    const paletteBright = colorMode === 'language' ? LANGUAGE_RGB_BRIGHT : TYPE_RGB_BRIGHT;
+    const key = colorMode === 'language' ? node.language : node.group;
+
     const rgb = (isSelected || isHovered)
       ? HOVER_RGB
       : isNeighbor
-        ? (TYPE_RGB_BRIGHT[node.group] ?? TYPE_RGB_BRIGHT.default)
-        : (TYPE_RGB[node.group] ?? TYPE_RGB.default);
+        ? (paletteBright[key] ?? paletteBright.default)
+        : (palette[key] ?? palette.default);
 
     const fill = rgbaStr(rgb, isHighlighted ? 1 : fadeOpacityRef.current);
 
@@ -516,7 +538,7 @@ export const GraphView: React.FC<GraphViewProps> = ({ graphData, selectedNode, o
       ctx.fillText(label, x, y + radius + 1.5);
       // ctx.fillText(label, x, boxY + boxHeight / 2 + 0.5);
     }
-  }, [hoverNode, highlightNodes, selectedNode, showNodeNames]);
+  }, [hoverNode, highlightNodes, selectedNode, showNodeNames, colorMode]);
 
   return (
     <div ref={containerRef} style={{ width: '100%', height: '100%', position: 'relative' }}>
