@@ -1,10 +1,9 @@
-mod models;
-mod parser;
-mod scanner;
-
 use std::env;
 use std::fs;
-use models::GraphData;
+
+use analyzer::models::GraphData;
+use analyzer::parsers::{LanguageParser, RustParser, TypeScriptParser, JavaScriptParser, all_extensions, parser_for_path};
+use analyzer::scanner;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -13,13 +12,22 @@ fn main() {
 
     println!("Scanning directory: {}", target_dir);
 
+    let registry: Vec<Box<dyn LanguageParser>> = vec![
+        Box::new(RustParser),
+        Box::new(TypeScriptParser),
+        Box::new(JavaScriptParser),
+    ];
+    let extensions = all_extensions(&registry);
+
     let mut nodes = Vec::new();
     let mut links = Vec::new();
 
-    let files = scanner::find_rust_files(target_dir);
+    let files = scanner::find_source_files(target_dir, &extensions);
 
     for file in files {
-        parser::parse_rust_file(&file, &mut nodes, &mut links);
+        if let Some(parser) = parser_for_path(&file, &registry) {
+            parser.parse(&file, &mut nodes, &mut links);
+        }
     }
 
     let graph = GraphData { nodes, links };

@@ -8,7 +8,22 @@ interface CodePreviewPanelProps {
   onClose: () => void;
 }
 
+const LANGUAGE_BADGE: Record<string, { label: string; color: string }> = {
+  rust: { label: 'RS', color: '#dea584' },
+  typescript: { label: 'TS', color: '#3178c6' },
+  javascript: { label: 'JS', color: '#f7df1e' },
+};
+
+const HIGHLIGHTER_LANGUAGE: Record<string, string> = {
+  rust: 'rust',
+  typescript: 'typescript',
+  javascript: 'javascript',
+};
+
 export const CodePreviewPanel: React.FC<CodePreviewPanelProps> = ({ selectedNode, onClose }) => {
+  const badge = LANGUAGE_BADGE[selectedNode.language] ?? { label: selectedNode.language.toUpperCase().slice(0, 3), color: '#475569' };
+  const highlighterLang = HIGHLIGHTER_LANGUAGE[selectedNode.language] ?? 'text';
+
   return (
     <div style={{
       width: '100%',
@@ -20,42 +35,51 @@ export const CodePreviewPanel: React.FC<CodePreviewPanelProps> = ({ selectedNode
       flexDirection: 'column',
       fontFamily: 'Inter, sans-serif'
     }}>
-      {/* Fixed Header Section (Sticky) */}
-      <div style={{ 
-        padding: '24px 24px 20px 24px', 
-        flexShrink: 0, 
-        borderBottom: '1px solid rgba(255,255,255,0.05)', 
-        background: 'linear-gradient(to bottom, #1e1e20, #161618)' 
+      <div style={{
+        padding: '24px 24px 20px 24px',
+        flexShrink: 0,
+        borderBottom: '1px solid rgba(255,255,255,0.05)',
+        background: 'linear-gradient(to bottom, #1e1e20, #161618)'
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
           <div>
-            {/* Node Type */}
-            <span style={{ 
-              background: '#475569',
-              padding: '4px 10px', 
-              borderRadius: '4px', 
-              fontSize: '0.7rem',
-              fontWeight: 'bold',
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em',
-              color: '#cbd5e1',
-              display: 'inline-block',
-              marginBottom: '12px'
-            }}>
-              TYPE: {selectedNode.group}
-            </span>
-            {/* Node Name */}
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '12px' }}>
+              <span style={{
+                background: '#475569',
+                padding: '4px 10px',
+                borderRadius: '4px',
+                fontSize: '0.7rem',
+                fontWeight: 'bold',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                color: '#cbd5e1',
+                display: 'inline-block'
+              }}>
+                TYPE: {selectedNode.group}
+              </span>
+              <span style={{
+                background: badge.color,
+                padding: '4px 10px',
+                borderRadius: '4px',
+                fontSize: '0.7rem',
+                fontWeight: 'bold',
+                color: '#161618',
+                display: 'inline-block'
+              }}>
+                {badge.label}
+              </span>
+            </div>
             <h2 style={{ fontSize: '1.4rem', margin: '0 0 8px 0', color: '#fff', fontWeight: 600, wordBreak: 'break-all' }}>
               {selectedNode.label}
             </h2>
           </div>
-          <button 
+          <button
             onClick={onClose}
-            style={{ 
-              background: 'none', 
-              border: 'none', 
-              color: '#64748b', 
-              cursor: 'pointer', 
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#64748b',
+              cursor: 'pointer',
               fontSize: '1.5rem',
               padding: '4px',
               lineHeight: 1,
@@ -68,31 +92,29 @@ export const CodePreviewPanel: React.FC<CodePreviewPanelProps> = ({ selectedNode
             ×
           </button>
         </div>
-        
-        {/* Node Path */}
+
         <div style={{ display: 'flex', alignItems: 'flex-start', color: '#64748b', fontSize: '0.8rem' }}>
           <span style={{ fontWeight: 600, marginRight: '8px', opacity: 0.7, marginTop: '2px' }}>PATH:</span>
           <span style={{ wordBreak: 'break-all', opacity: 0.9, lineHeight: 1.4 }}>{selectedNode.id}</span>
         </div>
       </div>
-      
-      {/* Scrollable Code Section */}
-      <div style={{ 
-        flex: 1, 
-        overflowY: 'auto', 
+
+      <div style={{
+        flex: 1,
+        overflowY: 'auto',
         overflowX: 'hidden',
         padding: '24px',
         minHeight: 0
       }}>
         {selectedNode.code ? (
-          <div style={{ 
-            borderRadius: '8px', 
+          <div style={{
+            borderRadius: '8px',
             border: '1px solid rgba(255,255,255,0.05)',
             background: '#1e1e20',
             overflow: 'hidden'
           }}>
-            <SyntaxHighlighter 
-              language="rust" 
+            <SyntaxHighlighter
+              language={highlighterLang}
               style={atomDark}
               showLineNumbers={true}
               wrapLines={true}

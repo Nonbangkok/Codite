@@ -5,6 +5,7 @@ pub struct Node {
     pub id: String,
     pub label: String,
     pub group: String,
+    pub language: String,
     pub val: usize,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub code: Option<String>,
