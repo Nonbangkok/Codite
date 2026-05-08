@@ -58,14 +58,16 @@ const TYPE_RGB_BRIGHT: Record<string, readonly [number, number, number]> = {
 };
 const LANGUAGE_RGB: Record<string, readonly [number, number, number]> = {
   rust: [222, 165, 132],
-  typescript: [49, 120, 198],
+  typescript: [0, 122, 204],
   javascript: [247, 223, 30],
+  python: [114, 159, 207],
   default: [162, 167, 182],
 };
 const LANGUAGE_RGB_BRIGHT: Record<string, readonly [number, number, number]> = {
   rust: [255, 197, 158],
-  typescript: [80, 159, 240],
+  typescript: [80, 180, 255],
   javascript: [255, 248, 100],
+  python: [160, 200, 240],
   default: [193, 199, 217],
 };
 const HOVER_RGB: readonly [number, number, number] = [244, 214, 118];
