@@ -119,17 +119,29 @@ export const createCrossingReductionForce = (
   links: SimLink[],
   samplesPerTick = 1200
 ) => {
+  let firstIndex = 0;
+  let secondIndex = 1;
+
+  const advancePair = () => {
+    secondIndex++;
+    if (secondIndex >= links.length) {
+      firstIndex++;
+      secondIndex = firstIndex + 1;
+    }
+    if (firstIndex >= links.length - 1) {
+      firstIndex = 0;
+      secondIndex = 1;
+    }
+  };
+
   const force = (alpha: number) => {
-    if (alpha < 0.01 || links.length < 2) return;
+    if (alpha < 0.003 || links.length < 2) return;
 
     const checks = Math.min(samplesPerTick, (links.length * (links.length - 1)) >> 1);
     for (let i = 0; i < checks; i++) {
-      const firstIndex = Math.floor(Math.random() * links.length);
-      let secondIndex = Math.floor(Math.random() * (links.length - 1));
-      if (secondIndex >= firstIndex) secondIndex++;
-
       const first = links[firstIndex];
       const second = links[secondIndex];
+      advancePair();
       if (!crosses(first, second)) continue;
 
       const a = first.source;
@@ -150,7 +162,7 @@ export const createCrossingReductionForce = (
       const secondDirection = Math.sign(
         (secondMidX - firstMidX) * secondNormal.x + (secondMidY - firstMidY) * secondNormal.y
       ) || -1;
-      const push = 22 * alpha;
+      const push = 36 * alpha;
 
       pushNode(a, firstNormal, firstDirection * push);
       pushNode(b, firstNormal, firstDirection * push);

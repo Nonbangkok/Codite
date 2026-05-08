@@ -104,7 +104,7 @@ export const GraphView: React.FC<GraphViewProps> = ({ graphData, selectedNode, o
         .iterations(1));
       fgRef.current.d3Force('x', d3.forceX(0).strength(0.012));
       fgRef.current.d3Force('y', d3.forceY(0).strength(0.012));
-      fgRef.current.d3Force('crossReduce', createCrossingReductionForce(linkForce.links(), 1200));
+      fgRef.current.d3Force('crossReduce', createCrossingReductionForce(linkForce.links(), 3000));
       fgRef.current.d3ReheatSimulation?.();
     }
   }, [graphData.nodes, graphData.links]);
