@@ -522,25 +522,52 @@ export const GraphView: React.FC<GraphViewProps> = ({ graphData, selectedNode, o
     <div ref={containerRef} style={{ width: '100%', height: '100%', position: 'relative' }}>
       <button
         type="button"
+        aria-pressed={showNodeNames}
         onClick={() => setShowNodeNames(prev => !prev)}
         style={{
           position: 'absolute',
           top: 20,
           right: 20,
           zIndex: 12,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '9px',
           border: '1px solid rgba(255,255,255,0.12)',
-          borderRadius: '6px',
-          background: showNodeNames ? 'rgba(244, 214, 118, 0.16)' : 'rgba(22, 22, 24, 0.82)',
-          color: showNodeNames ? '#f4d676' : '#a2a7b6',
+          borderRadius: '999px',
+          background: 'rgba(22, 22, 24, 0.82)',
+          color: '#a2a7b6',
           fontFamily: 'Inter, sans-serif',
           fontSize: '0.75rem',
           fontWeight: 600,
-          padding: '7px 10px',
+          padding: '7px 8px 7px 11px',
           cursor: 'pointer',
           backdropFilter: 'blur(8px)'
         }}
       >
-        Names {showNodeNames ? 'On' : 'Off'}
+        <span>Names</span>
+        <span
+          style={{
+            width: '34px',
+            height: '18px',
+            borderRadius: '999px',
+            background: showNodeNames ? 'rgba(244, 214, 118, 0.9)' : 'rgba(100, 116, 139, 0.45)',
+            position: 'relative',
+            transition: 'background 0.18s ease'
+          }}
+        >
+          <span
+            style={{
+              position: 'absolute',
+              top: '3px',
+              left: showNodeNames ? '19px' : '3px',
+              width: '12px',
+              height: '12px',
+              borderRadius: '50%',
+              background: showNodeNames ? '#161618' : '#cbd5e1',
+              transition: 'left 0.18s ease, background 0.18s ease'
+            }}
+          />
+        </span>
       </button>
       {hoverNode && (
         <div
