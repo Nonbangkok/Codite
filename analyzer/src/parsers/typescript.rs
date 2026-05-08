@@ -78,7 +78,132 @@ impl LanguageParser for TypeScriptParser {
         let mut cursor = QueryCursor::new();
         let mut captures = cursor.captures(&query, tree.root_node(), source_code.as_bytes());
 
-        // Capture handling implemented in Task 7. Variables held to suppress warnings.
-        let _ = (&mut captures, &full_path, &group, nodes, links);
+        while let Some((m, _)) = captures.next() {
+            for capture in m.captures {
+                let node = capture.node;
+                let full_content = &source_code[node.start_byte()..node.end_byte()];
+                let capture_name = query.capture_names()[capture.index as usize];
+                let start = node.start_byte();
+
+                match capture_name {
+                    "func" | "method" => {
+                        let name = node
+                            .child_by_field_name("name")
+                            .map(|n| source_code[n.start_byte()..n.end_byte()].to_string())
+                            .unwrap_or_else(|| "default".to_string());
+                        if capture_name == "method" && name == "constructor" {
+                            continue;
+                        }
+                        let id = format!("{}::fn::{}::{}", full_path, name, start);
+                        nodes.push(Node {
+                            id: id.clone(),
+                            label: format!("{}()", name),
+                            group: "functions".to_string(),
+                            language: "typescript".to_string(),
+                            val: 8,
+                            code: Some(full_content.to_string()),
+                        });
+                        links.push(Link {
+                            source: full_path.clone(),
+                            target: id,
+                            link_type: "contains".to_string(),
+                        });
+                    }
+                    "class" => {
+                        if let Some(name_node) = node.child_by_field_name("name") {
+                            let name = &source_code[name_node.start_byte()..name_node.end_byte()];
+                            let id = format!("{}::class::{}::{}", full_path, name, start);
+                            nodes.push(Node {
+                                id: id.clone(),
+                                label: name.to_string(),
+                                group: "classes".to_string(),
+                                language: "typescript".to_string(),
+                                val: 12,
+                                code: Some(full_content.to_string()),
+                            });
+                            links.push(Link {
+                                source: full_path.clone(),
+                                target: id,
+                                link_type: "contains".to_string(),
+                            });
+                        }
+                    }
+                    "interface" => {
+                        if let Some(name_node) = node.child_by_field_name("name") {
+                            let name = &source_code[name_node.start_byte()..name_node.end_byte()];
+                            let id = format!("{}::interface::{}::{}", full_path, name, start);
+                            nodes.push(Node {
+                                id: id.clone(),
+                                label: name.to_string(),
+                                group: "interfaces".to_string(),
+                                language: "typescript".to_string(),
+                                val: 14,
+                                code: Some(full_content.to_string()),
+                            });
+                            links.push(Link {
+                                source: full_path.clone(),
+                                target: id,
+                                link_type: "contains".to_string(),
+                            });
+                        }
+                    }
+                    "type" => {
+                        if let Some(name_node) = node.child_by_field_name("name") {
+                            let name = &source_code[name_node.start_byte()..name_node.end_byte()];
+                            let id = format!("{}::type::{}::{}", full_path, name, start);
+                            nodes.push(Node {
+                                id: id.clone(),
+                                label: name.to_string(),
+                                group: "types".to_string(),
+                                language: "typescript".to_string(),
+                                val: 10,
+                                code: Some(full_content.to_string()),
+                            });
+                            links.push(Link {
+                                source: full_path.clone(),
+                                target: id,
+                                link_type: "contains".to_string(),
+                            });
+                        }
+                    }
+                    "enum" => {
+                        if let Some(name_node) = node.child_by_field_name("name") {
+                            let name = &source_code[name_node.start_byte()..name_node.end_byte()];
+                            let id = format!("{}::enum::{}::{}", full_path, name, start);
+                            nodes.push(Node {
+                                id: id.clone(),
+                                label: name.to_string(),
+                                group: "enums".to_string(),
+                                language: "typescript".to_string(),
+                                val: 10,
+                                code: Some(full_content.to_string()),
+                            });
+                            links.push(Link {
+                                source: full_path.clone(),
+                                target: id,
+                                link_type: "contains".to_string(),
+                            });
+                        }
+                    }
+                    "import" => {
+                        let id = format!("{}::import::{}", full_path, start);
+                        nodes.push(Node {
+                            id: id.clone(),
+                            label: full_content.to_string(),
+                            group: "imports".to_string(),
+                            language: "typescript".to_string(),
+                            val: 5,
+                            code: Some(full_content.to_string()),
+                        });
+                        links.push(Link {
+                            source: full_path.clone(),
+                            target: id,
+                            link_type: "imports".to_string(),
+                        });
+                    }
+                    _ => {}
+                }
+            }
+        }
     }
 }

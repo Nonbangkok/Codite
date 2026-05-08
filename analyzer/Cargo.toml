@@ -6,6 +6,14 @@ edition = "2024"
 [package.metadata.atlograph]
 default_scan_dir = "../Panos/src"
 
+[lib]
+name = "analyzer"
+path = "src/lib.rs"
+
+[[bin]]
+name = "analyzer"
+path = "src/main.rs"
+
 [dependencies]
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"

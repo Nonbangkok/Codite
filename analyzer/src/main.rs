@@ -1,12 +1,9 @@
-mod models;
-mod parsers;
-mod scanner;
-
 use std::env;
 use std::fs;
 
-use models::GraphData;
-use parsers::{LanguageParser, RustParser, TypeScriptParser, all_extensions, parser_for_path};
+use analyzer::models::GraphData;
+use analyzer::parsers::{LanguageParser, RustParser, TypeScriptParser, all_extensions, parser_for_path};
+use analyzer::scanner;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
