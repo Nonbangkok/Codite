@@ -1,3 +1,6 @@
+pub mod rust;
+pub use rust::RustParser;
+
 use std::path::Path;
 
 use crate::models::{Link, Node};
