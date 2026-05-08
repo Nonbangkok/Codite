@@ -2,7 +2,7 @@ use std::env;
 use std::fs;
 
 use analyzer::models::GraphData;
-use analyzer::parsers::{LanguageParser, RustParser, TypeScriptParser, all_extensions, parser_for_path};
+use analyzer::parsers::{LanguageParser, RustParser, TypeScriptParser, JavaScriptParser, all_extensions, parser_for_path};
 use analyzer::scanner;
 
 fn main() {
@@ -15,6 +15,7 @@ fn main() {
     let registry: Vec<Box<dyn LanguageParser>> = vec![
         Box::new(RustParser),
         Box::new(TypeScriptParser),
+        Box::new(JavaScriptParser),
     ];
     let extensions = all_extensions(&registry);
 
