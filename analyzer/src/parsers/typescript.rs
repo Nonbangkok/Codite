@@ -59,6 +59,9 @@ impl LanguageParser for TypeScriptParser {
             (type_alias_declaration) @type
             (enum_declaration) @enum
             (method_definition) @method
+            (variable_declarator
+                name: (identifier) @arrow.name
+                value: [(arrow_function) (function_expression)]) @arrow
             (import_statement) @import
         ";
 
@@ -78,8 +81,9 @@ impl LanguageParser for TypeScriptParser {
         let mut cursor = QueryCursor::new();
         let mut captures = cursor.captures(&query, tree.root_node(), source_code.as_bytes());
 
-        while let Some((m, _)) = captures.next() {
-            for capture in m.captures {
+        while let Some((m, idx)) = captures.next() {
+            {
+                let capture = &m.captures[*idx];
                 let node = capture.node;
                 let full_content = &source_code[node.start_byte()..node.end_byte()];
                 let capture_name = query.capture_names()[capture.index as usize];
@@ -109,6 +113,25 @@ impl LanguageParser for TypeScriptParser {
                             link_type: "contains".to_string(),
                         });
                     }
+                    "arrow" => {
+                        let Some(name_node) = node.child_by_field_name("name") else { continue };
+                        let name = source_code[name_node.start_byte()..name_node.end_byte()].to_string();
+                        let id = format!("{}::fn::{}::{}", full_path, name, start);
+                        nodes.push(Node {
+                            id: id.clone(),
+                            label: format!("{}()", name),
+                            group: "functions".to_string(),
+                            language: "typescript".to_string(),
+                            val: 8,
+                            code: Some(full_content.to_string()),
+                        });
+                        links.push(Link {
+                            source: full_path.clone(),
+                            target: id,
+                            link_type: "contains".to_string(),
+                        });
+                    }
+                    "arrow.name" => {}
                     "class" => {
                         if let Some(name_node) = node.child_by_field_name("name") {
                             let name = &source_code[name_node.start_byte()..name_node.end_byte()];

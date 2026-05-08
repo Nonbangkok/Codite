@@ -22,3 +22,6 @@ export enum Role {
   Admin,
   Guest,
 }
+
+export const arrowGreet = (name: string): string => `Hi, ${name}`;
+const fnExpr = function double(x: number) { return x * 2; };
