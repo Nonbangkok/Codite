@@ -54,6 +54,22 @@ fn typescript_parser_resolves_relative_import_to_file_link() {
 }
 
 #[test]
+fn typescript_resolves_dot_js_specifier_to_ts_file() {
+    let parser = TypeScriptParser;
+    let mut nodes: Vec<Node> = Vec::new();
+    let mut links: Vec<Link> = Vec::new();
+    parser.parse(&fixture("typescript/nodenext.ts"), &mut nodes, &mut links);
+
+    let imported_path = fixture("typescript/imported.ts").to_string_lossy().into_owned();
+    assert!(
+        links.iter().any(|l| l.link_type == "imports_module" && l.target == imported_path),
+        "expected imports_module link to {} from .js specifier, got {:?}",
+        imported_path,
+        links.iter().filter(|l| l.link_type == "imports_module").collect::<Vec<_>>()
+    );
+}
+
+#[test]
 fn javascript_parser_extracts_constructs_and_tags_language() {
     let parser = JavaScriptParser;
     let mut nodes: Vec<Node> = Vec::new();

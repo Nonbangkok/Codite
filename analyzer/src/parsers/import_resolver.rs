@@ -27,8 +27,40 @@ pub fn resolve_relative(from_file: &Path, specifier: &str) -> Option<PathBuf> {
     if !specifier.starts_with("./") && !specifier.starts_with("../") {
         return None;
     }
+
+    // Try TS-extension swap for ".js"/".jsx" specifiers (TS NodeNext convention:
+    // `import "./foo.js"` actually resolves to `./foo.ts` on disk).
+    let ts_swapped: Option<String> = if let Some(stem) = specifier.strip_suffix(".js") {
+        Some(format!("{}.ts", stem))
+    } else if let Some(stem) = specifier.strip_suffix(".jsx") {
+        Some(format!("{}.tsx", stem))
+    } else {
+        None
+    };
+
     let base = from_file.parent()?;
     let joined = base.join(specifier);
+
+    if let Some(swapped) = &ts_swapped {
+        let mut candidate = base.join(swapped);
+        // Normalize trailing `.` segment by re-applying the file name.
+        if let Some(fname) = candidate.file_name().map(|s| s.to_string_lossy().into_owned()) {
+            candidate.set_file_name(fname);
+        }
+        if candidate.exists() {
+            return Some(candidate);
+        }
+        // Also try replacing .js with .tsx
+        if let Some(stem) = specifier.strip_suffix(".js") {
+            let mut alt = base.join(format!("{}.tsx", stem));
+            if let Some(fname) = alt.file_name().map(|s| s.to_string_lossy().into_owned()) {
+                alt.set_file_name(fname);
+            }
+            if alt.exists() {
+                return Some(alt);
+            }
+        }
+    }
 
     // Try direct extensions: ./foo.ts, ./foo.tsx, ...
     for ext in CANDIDATE_EXTENSIONS {
