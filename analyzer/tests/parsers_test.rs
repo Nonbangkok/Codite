@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use analyzer::models::{Link, Node};
-use analyzer::parsers::{LanguageParser, TypeScriptParser};
+use analyzer::parsers::{LanguageParser, TypeScriptParser, JavaScriptParser};
 
 fn fixture(rel: &str) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -51,4 +51,18 @@ fn typescript_parser_resolves_relative_import_to_file_link() {
         imported_path,
         module_links
     );
+}
+
+#[test]
+fn javascript_parser_extracts_constructs_and_tags_language() {
+    let parser = JavaScriptParser;
+    let mut nodes: Vec<Node> = Vec::new();
+    let mut links: Vec<Link> = Vec::new();
+
+    parser.parse(&fixture("javascript/sample.js"), &mut nodes, &mut links);
+
+    assert!(nodes.iter().all(|n| n.language == "javascript"));
+    assert_eq!(count_group(&nodes, "functions"), 2, "add() + increment() (constructor excluded)");
+    assert_eq!(count_group(&nodes, "classes"), 1);
+    assert_eq!(count_group(&nodes, "imports"), 1);
 }
