@@ -1,4 +1,4 @@
-import type { NodeData } from '../types';
+import type { NodeData, LinkData } from '../types';
 
 export interface FileTreeItem {
   name: string;
@@ -54,4 +54,47 @@ export const buildFileTree = (nodes: NodeData[]): FileTreeItem[] => {
 
   sortTree(root);
   return root;
+};
+
+export const buildFolderNodes = (
+  fileNodes: NodeData[]
+): { nodes: NodeData[]; links: LinkData[] } => {
+  const folderSet = new Set<string>();
+
+  fileNodes.forEach(node => {
+    const parts = node.id.split('/');
+    for (let i = 1; i < parts.length; i++) {
+      folderSet.add(parts.slice(0, i).join('/'));
+    }
+  });
+
+  const nodes: NodeData[] = Array.from(folderSet).map(folderPath => ({
+    id: folderPath,
+    label: folderPath.split('/').pop() ?? folderPath,
+    group: 'folders',
+    language: '',
+    val: 4,
+  }));
+
+  const links: LinkData[] = [];
+
+  fileNodes.forEach(node => {
+    const parts = node.id.split('/');
+    if (parts.length > 1) {
+      const parentPath = parts.slice(0, -1).join('/');
+      links.push({ source: parentPath, target: node.id, type: 'contains' });
+    }
+  });
+
+  folderSet.forEach(folderPath => {
+    const parts = folderPath.split('/');
+    if (parts.length > 1) {
+      const parentPath = parts.slice(0, -1).join('/');
+      if (folderSet.has(parentPath)) {
+        links.push({ source: parentPath, target: folderPath, type: 'contains' });
+      }
+    }
+  });
+
+  return { nodes, links };
 };
