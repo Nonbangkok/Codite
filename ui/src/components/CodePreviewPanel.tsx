@@ -12,12 +12,14 @@ const LANGUAGE_BADGE: Record<string, { label: string; color: string }> = {
   rust: { label: 'RS', color: '#dea584' },
   typescript: { label: 'TS', color: '#3178c6' },
   javascript: { label: 'JS', color: '#f7df1e' },
+  python: { label: 'PY', color: '#4b8bbe' },
 };
 
 const HIGHLIGHTER_LANGUAGE: Record<string, string> = {
   rust: 'rust',
   typescript: 'typescript',
   javascript: 'javascript',
+  python: 'python',
 };
 
 export const CodePreviewPanel: React.FC<CodePreviewPanelProps> = ({ selectedNode, onClose }) => {
