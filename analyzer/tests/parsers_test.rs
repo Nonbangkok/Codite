@@ -23,7 +23,7 @@ fn typescript_parser_extracts_all_constructs() {
 
     // file node + 1 function + 1 class + 1 interface + 1 type alias + 1 enum + 2 imports + 1 method
     assert!(nodes.iter().all(|n| n.language == "typescript"));
-    assert_eq!(count_group(&nodes, "functions"), 2, "expected greet() + User.greet()");
+    assert_eq!(count_group(&nodes, "functions"), 4, "expected greet() + User.greet() + arrowGreet() + fnExpr()");
     assert_eq!(count_group(&nodes, "classes"), 1);
     assert_eq!(count_group(&nodes, "interfaces"), 1);
     assert_eq!(count_group(&nodes, "types"), 1);
@@ -62,7 +62,7 @@ fn javascript_parser_extracts_constructs_and_tags_language() {
     parser.parse(&fixture("javascript/sample.js"), &mut nodes, &mut links);
 
     assert!(nodes.iter().all(|n| n.language == "javascript"));
-    assert_eq!(count_group(&nodes, "functions"), 2, "add() + increment() (constructor excluded)");
+    assert_eq!(count_group(&nodes, "functions"), 3, "add() + increment() + subtract() (constructor excluded)");
     assert_eq!(count_group(&nodes, "classes"), 1);
     assert_eq!(count_group(&nodes, "imports"), 1);
 }

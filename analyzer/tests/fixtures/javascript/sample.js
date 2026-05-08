@@ -12,3 +12,5 @@ export class Counter {
     this.value += 1;
   }
 }
+
+export const subtract = (a, b) => a - b;
