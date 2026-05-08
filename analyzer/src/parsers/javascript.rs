@@ -48,7 +48,7 @@ impl LanguageParser for JavaScriptParser {
         let query_code = "
             (function_declaration) @func
             (class_declaration) @class
-            (method_definition) @method
+            (class_body (method_definition) @method)
             (variable_declarator
                 name: (identifier) @arrow.name
                 value: [(arrow_function) (function_expression)]) @arrow
