@@ -13,6 +13,7 @@ function App() {
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [panelWidth, setPanelWidth] = useState(500);
   const [isResizing, setIsResizing] = useState(false);
+  const [colorMode, setColorMode] = useState<'group' | 'language'>('group');
   const prevDataStrRef = useRef<string>('');
 
   // ดึงข้อมูลจากไฟล์ที่ Backend สร้างขึ้น
@@ -152,11 +153,34 @@ function App() {
           )}
         </div>
 
+        <button
+          type="button"
+          onClick={() => setColorMode(prev => prev === 'group' ? 'language' : 'group')}
+          style={{
+            position: 'absolute',
+            top: 20,
+            right: 110,
+            zIndex: 12,
+            border: '1px solid rgba(255,255,255,0.12)',
+            borderRadius: '999px',
+            background: 'rgba(22, 22, 24, 0.82)',
+            color: '#a2a7b6',
+            fontFamily: 'Inter, sans-serif',
+            fontSize: '0.75rem',
+            fontWeight: 600,
+            padding: '7px 12px',
+            cursor: 'pointer',
+            backdropFilter: 'blur(8px)'
+          }}
+        >
+          Color: {colorMode === 'group' ? 'Type' : 'Language'}
+        </button>
         <GraphView
           graphData={filteredData}
           selectedNode={selectedNode}
           onNodeSelect={(node) => setSelectedNodeId(node ? node.id : null)}
           customWidthOffset={selectedNode ? panelWidth : 0}
+          colorMode={colorMode}
         />
       </div>
 

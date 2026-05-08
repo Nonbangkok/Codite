@@ -1,0 +1,95 @@
+use std::path::{Path, PathBuf};
+
+const CANDIDATE_EXTENSIONS: &[&str] = &[".ts", ".tsx", ".js", ".jsx"];
+const INDEX_FILES: &[&str] = &["index.ts", "index.tsx", "index.js", "index.jsx"];
+
+/// Extracts the specifier from an `import_statement` source string.
+/// Examples: `import x from "./foo"` → Some("./foo")
+pub fn extract_specifier(import_text: &str) -> Option<String> {
+    let mut chars = import_text.chars();
+    let mut quote: Option<char> = None;
+    let mut buf = String::new();
+    while let Some(c) = chars.next() {
+        match (quote, c) {
+            (None, '"') | (None, '\'') => quote = Some(c),
+            (Some(q), c) if c == q => return Some(buf),
+            (Some(_), c) => buf.push(c),
+            _ => {}
+        }
+    }
+    None
+}
+
+/// Resolves a relative import specifier from `from_file` to a concrete
+/// scanned-file path on disk. Returns `None` for bare specifiers (e.g. "react")
+/// or unresolvable paths.
+pub fn resolve_relative(from_file: &Path, specifier: &str) -> Option<PathBuf> {
+    if !specifier.starts_with("./") && !specifier.starts_with("../") {
+        return None;
+    }
+
+    // Try TS-extension swap for ".js"/".jsx" specifiers (TS NodeNext convention:
+    // `import "./foo.js"` actually resolves to `./foo.ts` on disk).
+    let ts_swapped: Option<String> = if let Some(stem) = specifier.strip_suffix(".js") {
+        Some(format!("{}.ts", stem))
+    } else if let Some(stem) = specifier.strip_suffix(".jsx") {
+        Some(format!("{}.tsx", stem))
+    } else {
+        None
+    };
+
+    let base = from_file.parent()?;
+    let joined = base.join(specifier);
+
+    if let Some(swapped) = &ts_swapped {
+        let mut candidate = base.join(swapped);
+        // Normalize trailing `.` segment by re-applying the file name.
+        if let Some(fname) = candidate.file_name().map(|s| s.to_string_lossy().into_owned()) {
+            candidate.set_file_name(fname);
+        }
+        if candidate.exists() {
+            return Some(candidate);
+        }
+        // Also try replacing .js with .tsx
+        if let Some(stem) = specifier.strip_suffix(".js") {
+            let mut alt = base.join(format!("{}.tsx", stem));
+            if let Some(fname) = alt.file_name().map(|s| s.to_string_lossy().into_owned()) {
+                alt.set_file_name(fname);
+            }
+            if alt.exists() {
+                return Some(alt);
+            }
+        }
+    }
+
+    // Try direct extensions: ./foo.ts, ./foo.tsx, ...
+    for ext in CANDIDATE_EXTENSIONS {
+        let mut candidate = joined.clone();
+        let new_name = format!(
+            "{}{}",
+            candidate.file_name()?.to_string_lossy(),
+            ext
+        );
+        candidate.set_file_name(new_name);
+        if candidate.exists() {
+            return Some(candidate);
+        }
+    }
+
+    // If the specifier already had an extension, also try the path as-is.
+    if joined.exists() && joined.is_file() {
+        return Some(joined);
+    }
+
+    // Try index files inside a directory: ./foo/index.ts ...
+    if joined.is_dir() {
+        for index in INDEX_FILES {
+            let candidate = joined.join(index);
+            if candidate.exists() {
+                return Some(candidate);
+            }
+        }
+    }
+
+    None
+}
