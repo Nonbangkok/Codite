@@ -2,6 +2,7 @@ export interface NodeData {
   id: string;
   label: string;
   group: string;
+  language: string;
   val: number;
   code?: string;
   x?: number;
