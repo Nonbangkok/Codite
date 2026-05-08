@@ -4,7 +4,7 @@ import { GraphView } from './components/GraphView';
 import { CodePreviewPanel } from './components/CodePreviewPanel';
 import { CommandPalette } from './components/CommandPalette';
 import { FileExplorer } from './components/FileExplorer';
-import { buildFileTree } from './utils/treeUtils';
+import { buildFileTree, buildFolderNodes } from './utils/treeUtils';
 
 function App() {
   const [graphData, setGraphData] = useState<GraphData>({ nodes: [], links: [] });
@@ -14,6 +14,7 @@ function App() {
   const [panelWidth, setPanelWidth] = useState(500);
   const [isResizing, setIsResizing] = useState(false);
   const [colorMode, setColorMode] = useState<'group' | 'language'>('group');
+  const [showFolderNodes, setShowFolderNodes] = useState(false);
   const prevDataStrRef = useRef<string>('');
 
   // ดึงข้อมูลจากไฟล์ที่ Backend สร้างขึ้น
@@ -60,21 +61,31 @@ function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  const graphDataWithFolders = useMemo(() => {
+    if (!showFolderNodes) return graphData;
+    const fileNodes = graphData.nodes.filter(n => !n.id.includes('::'));
+    const { nodes: folderNodes, links: folderLinks } = buildFolderNodes(fileNodes);
+    return {
+      nodes: [...graphData.nodes, ...folderNodes],
+      links: [...graphData.links, ...folderLinks],
+    };
+  }, [graphData, showFolderNodes]);
+
   // กรองข้อมูลตามโฟลเดอร์ที่เลือก (Folder Filtering)
   const filteredData = useMemo(() => {
-    if (!activeFolderPath) return graphData;
+    if (!activeFolderPath) return graphDataWithFolders;
 
-    const nodes = graphData.nodes.filter(n => n.id.startsWith(activeFolderPath));
+    const nodes = graphDataWithFolders.nodes.filter(n => n.id.startsWith(activeFolderPath));
     const nodeIds = new Set(nodes.map(n => n.id));
 
-    const links = graphData.links.filter(l => {
+    const links = graphDataWithFolders.links.filter(l => {
       const sourceId = typeof l.source === 'object' ? l.source.id : l.source;
       const targetId = typeof l.target === 'object' ? l.target.id : l.target;
       return sourceId && targetId && nodeIds.has(sourceId) && nodeIds.has(targetId);
     });
 
     return { nodes, links };
-  }, [graphData, activeFolderPath]);
+  }, [graphDataWithFolders, activeFolderPath]);
 
   const fileTree = useMemo(() => buildFileTree(graphData.nodes), [graphData.nodes]);
 
@@ -107,8 +118,8 @@ function App() {
   }, [resize, stopResizing]);
 
   const selectedNode = useMemo(() => {
-    return graphData.nodes.find(n => n.id === selectedNodeId) || null;
-  }, [graphData.nodes, selectedNodeId]);
+    return graphDataWithFolders.nodes.find(n => n.id === selectedNodeId) || null;
+  }, [graphDataWithFolders.nodes, selectedNodeId]);
 
   return (
     <div style={{ width: '100vw', height: '100vh', background: '#161618', overflow: 'hidden', display: 'flex' }}>
@@ -141,6 +152,12 @@ function App() {
           customWidthOffset={selectedNode ? panelWidth : 0}
           colorMode={colorMode}
           onColorModeToggle={() => setColorMode(prev => prev === 'group' ? 'language' : 'group')}
+          showFolderNodes={showFolderNodes}
+          onFolderNodesToggle={() => setShowFolderNodes(prev => !prev)}
+          onFolderSelect={(path: string) => {
+            setActiveFolderPath(path);
+            setSelectedNodeId(null);
+          }}
         />
       </div>
 

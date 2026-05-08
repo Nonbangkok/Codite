@@ -21,6 +21,9 @@ interface GraphViewProps {
   customWidthOffset?: number;
   colorMode: 'group' | 'language';
   onColorModeToggle: () => void;
+  showFolderNodes: boolean;
+  onFolderNodesToggle: () => void;
+  onFolderSelect: (path: string) => void;
 }
 
 type ZoomTransform = { x: number; y: number; k: number };
@@ -44,6 +47,7 @@ const TYPE_RGB: Record<string, readonly [number, number, number]> = {
   classes: [86, 182, 194],
   interfaces: [152, 195, 121],
   types: [224, 108, 117],
+  folders: [244, 214, 118],
   default: [162, 167, 182],
 };
 const TYPE_RGB_BRIGHT: Record<string, readonly [number, number, number]> = {
@@ -54,6 +58,7 @@ const TYPE_RGB_BRIGHT: Record<string, readonly [number, number, number]> = {
   classes: [102, 217, 232],
   interfaces: [181, 233, 144],
   types: [255, 129, 140],
+  folders: [255, 235, 150],
   default: [193, 199, 217],
 };
 const LANGUAGE_RGB: Record<string, readonly [number, number, number]> = {
@@ -89,7 +94,7 @@ const CONFIG = {
   frameInterval: 16,       // ~60fps
 };
 
-export const GraphView: React.FC<GraphViewProps> = ({ graphData, selectedNode, onNodeSelect, customWidthOffset = 0, colorMode, onColorModeToggle }) => {
+export const GraphView: React.FC<GraphViewProps> = ({ graphData, selectedNode, onNodeSelect, customWidthOffset = 0, colorMode, onColorModeToggle, showFolderNodes, onFolderNodesToggle, onFolderSelect }) => {
   const [hoverNode, setHoverNode] = useState<NodeData | null>(null);
   const [highlightNodes, setHighlightNodes] = useState<Set<string>>(new Set());
   const [highlightLinks, setHighlightLinks] = useState<Set<LinkData>>(new Set());
@@ -599,6 +604,7 @@ export const GraphView: React.FC<GraphViewProps> = ({ graphData, selectedNode, o
           onMouseLeave={(e) => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'}
         >
           <span>Names</span>
+
           <span
             style={{
               width: '34px',
@@ -618,6 +624,55 @@ export const GraphView: React.FC<GraphViewProps> = ({ graphData, selectedNode, o
                 height: '12px',
                 borderRadius: '50%',
                 background: showNodeNames ? '#161618' : '#cbd5e1',
+                transition: 'left 0.18s ease, background 0.18s ease'
+              }}
+            />
+          </span>
+        </button>
+
+        <button
+          type="button"
+          aria-pressed={showFolderNodes}
+          onClick={onFolderNodesToggle}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '9px',
+            border: '1px solid rgba(255,255,255,0.12)',
+            borderRadius: '999px',
+            background: 'rgba(22, 22, 24, 0.82)',
+            color: '#a2a7b6',
+            fontFamily: 'Inter, sans-serif',
+            fontSize: '0.75rem',
+            fontWeight: 600,
+            padding: '7px 8px 7px 11px',
+            cursor: 'pointer',
+            backdropFilter: 'blur(8px)',
+            transition: 'all 0.2s'
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.25)'}
+          onMouseLeave={(e) => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'}
+        >
+          <span>Folders</span>
+          <span
+            style={{
+              width: '34px',
+              height: '18px',
+              borderRadius: '999px',
+              background: showFolderNodes ? 'rgba(244, 214, 118, 0.9)' : 'rgba(100, 116, 139, 0.45)',
+              position: 'relative',
+              transition: 'background 0.18s ease'
+            }}
+          >
+            <span
+              style={{
+                position: 'absolute',
+                top: '3px',
+                left: showFolderNodes ? '19px' : '3px',
+                width: '12px',
+                height: '12px',
+                borderRadius: '50%',
+                background: showFolderNodes ? '#161618' : '#cbd5e1',
                 transition: 'left 0.18s ease, background 0.18s ease'
               }}
             />
@@ -659,7 +714,14 @@ export const GraphView: React.FC<GraphViewProps> = ({ graphData, selectedNode, o
         nodeCanvasObject={paintNode}
         nodeLabel={() => ""}
         onNodeHover={handleNodeHover}
-        onNodeClick={(node) => onNodeSelect(node as NodeData)}
+        onNodeClick={(node) => {
+          const n = node as NodeData;
+          if (n.group === 'folders') {
+            onFolderSelect(n.id);
+          } else {
+            onNodeSelect(n);
+          }
+        }}
         onBackgroundClick={() => onNodeSelect(null)}
         onZoom={handleZoom}
         onZoomEnd={handleZoomEnd}
