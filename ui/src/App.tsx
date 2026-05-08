@@ -133,54 +133,14 @@ function App() {
       />
       {/* Main Graph Area */}
       <div style={{ flex: 1, position: 'relative' }}>
-        {/* Header Info */}
-        <div style={{
-          position: 'absolute',
-          top: 20,
-          left: 20,
-          zIndex: 10,
-          color: '#a2a7b6',
-          fontFamily: 'Inter, sans-serif',
-          pointerEvents: 'none'
-        }}>
-          <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 600 }}>AtloGraph</h1>
-          {activeFolderPath ? (
-            <p style={{ margin: '4px 0', color: '#f4d676', fontSize: '0.9rem', display: 'flex', alignItems: 'center' }}>
-              Viewing Scope: {activeFolderPath}
-            </p>
-          ) : (
-            <p style={{ margin: '4px 0', opacity: 0.6, fontSize: '0.9rem' }}>Visualizing Your Codebase</p>
-          )}
-        </div>
 
-        <button
-          type="button"
-          onClick={() => setColorMode(prev => prev === 'group' ? 'language' : 'group')}
-          style={{
-            position: 'absolute',
-            top: 20,
-            right: 110,
-            zIndex: 12,
-            border: '1px solid rgba(255,255,255,0.12)',
-            borderRadius: '999px',
-            background: 'rgba(22, 22, 24, 0.82)',
-            color: '#a2a7b6',
-            fontFamily: 'Inter, sans-serif',
-            fontSize: '0.75rem',
-            fontWeight: 600,
-            padding: '7px 12px',
-            cursor: 'pointer',
-            backdropFilter: 'blur(8px)'
-          }}
-        >
-          Color: {colorMode === 'group' ? 'Type' : 'Language'}
-        </button>
         <GraphView
           graphData={filteredData}
           selectedNode={selectedNode}
           onNodeSelect={(node) => setSelectedNodeId(node ? node.id : null)}
           customWidthOffset={selectedNode ? panelWidth : 0}
           colorMode={colorMode}
+          onColorModeToggle={() => setColorMode(prev => prev === 'group' ? 'language' : 'group')}
         />
       </div>
 
