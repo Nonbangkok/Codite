@@ -614,6 +614,9 @@ export const GraphView: React.FC<GraphViewProps> = ({ graphData, selectedNode, o
           <div style={{ color: '#e6edf3', fontSize: '0.82rem', fontWeight: 600, lineHeight: 1.3, wordBreak: 'break-word' }}>
             {hoverNode.label}
           </div>
+          <div style={{ color: '#64748b', fontSize: '0.68rem', marginTop: '6px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            Language: <span style={{ color: '#cbd5e1' }}>{hoverNode.language}</span>
+          </div>
         </div>
       )}
       <ForceGraph2D
