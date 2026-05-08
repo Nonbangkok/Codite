@@ -58,7 +58,7 @@ impl LanguageParser for TypeScriptParser {
             (interface_declaration) @interface
             (type_alias_declaration) @type
             (enum_declaration) @enum
-            (method_definition) @method
+            (class_body (method_definition) @method)
             (variable_declarator
                 name: (identifier) @arrow.name
                 value: [(arrow_function) (function_expression)]) @arrow

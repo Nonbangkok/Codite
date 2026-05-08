@@ -25,3 +25,8 @@ export enum Role {
 
 export const arrowGreet = (name: string): string => `Hi, ${name}`;
 const fnExpr = function double(x: number) { return x * 2; };
+
+const obj = {
+  shouldNotBeCounted() { return 1; },
+  alsoNotCounted: function () { return 2; },
+};
