@@ -1,5 +1,6 @@
 mod models;
 mod parser;
+mod parsers;
 mod scanner;
 
 use std::env;
