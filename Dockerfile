@@ -1,9 +1,9 @@
 FROM rust:1-bookworm AS analyzer-builder
 WORKDIR /app/analyzer
-COPY analyzer/Cargo.toml analyzer/Cargo.lock ./
+COPY analyzer/Cargo.toml ./
 COPY analyzer/build.rs ./build.rs
 COPY analyzer/src ./src
-RUN cargo build --release --locked
+RUN cargo build --release
 
 FROM node:22-bookworm-slim AS ui-builder
 WORKDIR /app/ui
