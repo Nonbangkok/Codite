@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import type { GraphData, NodeData } from './types';
+import type { GraphData, LinkData, NodeData } from './types';
 import { GraphView } from './components/GraphView';
 import { CodePreviewPanel } from './components/CodePreviewPanel';
 import { CommandPalette } from './components/CommandPalette';
@@ -27,7 +27,7 @@ function App() {
 
       const filteredNodes = data.nodes.filter((n: NodeData) => n.group !== 'imports');
       const validNodeIds = new Set(filteredNodes.map((n: NodeData) => n.id));
-      const filteredLinks = data.links.filter((l: any) => {
+      const filteredLinks = data.links.filter((l: LinkData) => {
         const sourceId = typeof l.source === 'string' ? l.source : l.source.id;
         const targetId = typeof l.target === 'string' ? l.target : l.target.id;
         return validNodeIds.has(sourceId) && validNodeIds.has(targetId);
@@ -46,7 +46,9 @@ function App() {
   }, []);
 
   useEffect(() => {
-    fetchData();
+    queueMicrotask(() => {
+      void fetchData();
+    });
     const interval = setInterval(fetchData, 5000);
     return () => clearInterval(interval);
   }, [fetchData]);

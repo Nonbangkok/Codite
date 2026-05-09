@@ -17,7 +17,7 @@ export const RemoteScanner: React.FC<RemoteScannerProps> = ({ onScanSuccess }) =
     setErrorMessage('');
 
     try {
-      const response = await fetch('http://localhost:3001/api/scan', {
+      const response = await fetch('/api/scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url }),
@@ -32,10 +32,10 @@ export const RemoteScanner: React.FC<RemoteScannerProps> = ({ onScanSuccess }) =
       } else {
         throw new Error(data.error || 'Scan failed');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
       setStatus('error');
-      setErrorMessage(err.message || 'Connection to scan server failed');
+      setErrorMessage(err instanceof Error ? err.message : 'Connection to scan server failed');
     }
   };
 
