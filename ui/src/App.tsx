@@ -21,7 +21,8 @@ function App() {
   // ดึงข้อมูลจากไฟล์ที่ Backend สร้างขึ้น
   const fetchData = useCallback(async () => {
     try {
-      const response = await fetch('/data.json');
+      // Add cache buster to ensure we get the latest scan results
+      const response = await fetch(`/data.json?t=${Date.now()}`);
       const data = await response.json();
 
       const filteredNodes = data.nodes.filter((n: NodeData) => n.group !== 'imports');

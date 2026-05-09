@@ -25,7 +25,7 @@ Write minimal Express server in `ui/server.ts` with a health check.
 
 **Step 3: Commit setup**
 ```bash
-git add ui/package.json ui/server.js
+git add ui/package.json ui/server.ts
 git commit -m "chore: setup backend infrastructure for remote scanning"
 ```
 

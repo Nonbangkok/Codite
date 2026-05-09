@@ -42,7 +42,7 @@ We will use an integrated Node.js/Express server running alongside the Vite dev 
 ## Implementation Steps
 1.  **Infrastructure**:
     *   Install `express`, `cors`, `concurrently`.
-    *   Create `ui/server.js`.
+    *   Create `ui/server.ts`.
 2.  **Backend**:
     *   Implement `/api/scan` logic.
     *   Integrate `git clone` and binary execution.

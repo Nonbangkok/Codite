@@ -48,7 +48,7 @@ fn main() {
     let graph = GraphData { nodes, links };
 
     if let Ok(json) = serde_json::to_string_pretty(&graph) {
-        let output_path = "../ui/public/data.json";
+        let output_path = "data.json";
         match fs::write(output_path, json) {
             Ok(_) => println!("Successfully saved graph data to {}", output_path),
             Err(e) => eprintln!("Error saving graph data: {}", e),
