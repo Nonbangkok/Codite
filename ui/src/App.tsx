@@ -5,6 +5,7 @@ import { CodePreviewPanel } from './components/CodePreviewPanel';
 import { CommandPalette } from './components/CommandPalette';
 import { FileExplorer } from './components/FileExplorer';
 import { buildFileTree, buildFolderNodes } from './utils/treeUtils';
+import { RemoteScanner } from './components/RemoteScanner';
 
 function App() {
   const [graphData, setGraphData] = useState<GraphData>({ nodes: [], links: [] });
@@ -18,36 +19,36 @@ function App() {
   const prevDataStrRef = useRef<string>('');
 
   // ดึงข้อมูลจากไฟล์ที่ Backend สร้างขึ้น
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const response = await fetch('/data.json');
-        const data = await response.json();
+  const fetchData = useCallback(async () => {
+    try {
+      const response = await fetch('/data.json');
+      const data = await response.json();
 
-        const filteredNodes = data.nodes.filter((n: NodeData) => n.group !== 'imports');
-        const validNodeIds = new Set(filteredNodes.map((n: NodeData) => n.id));
-        const filteredLinks = data.links.filter((l: any) => {
-          const sourceId = typeof l.source === 'string' ? l.source : l.source.id;
-          const targetId = typeof l.target === 'string' ? l.target : l.target.id;
-          return validNodeIds.has(sourceId) && validNodeIds.has(targetId);
-        });
+      const filteredNodes = data.nodes.filter((n: NodeData) => n.group !== 'imports');
+      const validNodeIds = new Set(filteredNodes.map((n: NodeData) => n.id));
+      const filteredLinks = data.links.filter((l: any) => {
+        const sourceId = typeof l.source === 'string' ? l.source : l.source.id;
+        const targetId = typeof l.target === 'string' ? l.target : l.target.id;
+        return validNodeIds.has(sourceId) && validNodeIds.has(targetId);
+      });
 
-        const finalData = { nodes: filteredNodes, links: filteredLinks };
-        const dataStr = JSON.stringify(finalData);
+      const finalData = { nodes: filteredNodes, links: filteredLinks };
+      const dataStr = JSON.stringify(finalData);
 
-        if (dataStr !== prevDataStrRef.current) {
-          setGraphData(finalData);
-          prevDataStrRef.current = dataStr;
-        }
-      } catch (error) {
-        console.error('Error loading graph data:', error);
+      if (dataStr !== prevDataStrRef.current) {
+        setGraphData(finalData);
+        prevDataStrRef.current = dataStr;
       }
-    };
+    } catch (error) {
+      console.error('Error loading graph data:', error);
+    }
+  }, []);
 
+  useEffect(() => {
     fetchData();
     const interval = setInterval(fetchData, 5000);
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchData]);
 
   // ปุ่มลัดเปิด Command Palette
   useEffect(() => {
@@ -144,6 +145,7 @@ function App() {
       />
       {/* Main Graph Area */}
       <div style={{ flex: 1, position: 'relative' }}>
+        <RemoteScanner onScanSuccess={fetchData} />
 
         <GraphView
           graphData={filteredData}
