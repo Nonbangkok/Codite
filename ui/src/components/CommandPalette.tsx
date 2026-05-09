@@ -38,9 +38,11 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose,
 
   useEffect(() => {
     if (isOpen) {
-      setQuery('');
-      setSelectedIndex(0);
-      const timer = setTimeout(() => inputRef.current?.focus(), 10);
+      const timer = setTimeout(() => {
+        setQuery('');
+        setSelectedIndex(0);
+        inputRef.current?.focus();
+      }, 10);
       return () => clearTimeout(timer);
     }
   }, [isOpen]);
