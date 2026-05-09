@@ -11,7 +11,20 @@ fn main() {
     let default_dir = env!("DEFAULT_SCAN_DIR");
     let target_dir = if args.len() > 1 { &args[1] } else { default_dir };
 
+    // Smart default output path:
+    // 1. If 2nd arg is provided, use it.
+    // 2. If ../ui/public exists, use ../ui/public/data.json.
+    // 3. Otherwise, use data.json in the current directory.
+    let output_path = if args.len() > 2 {
+        args[2].clone()
+    } else if std::path::Path::new("../ui/public").exists() {
+        "../ui/public/data.json".to_string()
+    } else {
+        "data.json".to_string()
+    };
+
     println!("Scanning directory: {}", target_dir);
+    println!("Output will be saved to: {}", output_path);
 
     let registry: Vec<Box<dyn LanguageParser>> = vec![
         Box::new(RustParser),
@@ -48,10 +61,9 @@ fn main() {
     let graph = GraphData { nodes, links };
 
     if let Ok(json) = serde_json::to_string_pretty(&graph) {
-        let output_path = "data.json";
-        match fs::write(output_path, json) {
+        match fs::write(&output_path, json) {
             Ok(_) => println!("Successfully saved graph data to {}", output_path),
-            Err(e) => eprintln!("Error saving graph data: {}", e),
+            Err(e) => eprintln!("Error saving graph data to {}: {}", output_path, e),
         }
     }
 }

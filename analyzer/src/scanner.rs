@@ -1,7 +1,16 @@
 use std::path::PathBuf;
 use walkdir::WalkDir;
 
-const SKIP_DIRS: &[&str] = &["target", "node_modules", "dist", "build"];
+const SKIP_DIRS: &[&str] = &[
+    "target",
+    "node_modules",
+    "dist",
+    "build",
+    ".git",
+    ".vscode",
+    ".agent",
+    ".claude",
+];
 
 pub fn find_source_files(target_dir: &str, extensions: &[&str]) -> Vec<PathBuf> {
     let mut files = Vec::new();

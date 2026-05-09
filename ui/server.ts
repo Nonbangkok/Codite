@@ -70,7 +70,7 @@ app.post('/api/scan', async (req: Request<object, object, ScanRequest>, res: Res
     // 2. Run the analyzer from baseDir, targeting repoName
     // This makes the analyzer use repoName as the root path for IDs
     const analyzerPath = process.env.ANALYZER_BIN || path.join(uiRoot, '../analyzer/target/release/analyzer');
-    await runFile(analyzerPath, [repoName], baseDir);
+    await runFile(analyzerPath, [repoName, 'data.json'], baseDir);
 
     // 3. Move the generated data.json for the UI to reload.
     const generatedDataPath = path.join(baseDir, 'data.json');
