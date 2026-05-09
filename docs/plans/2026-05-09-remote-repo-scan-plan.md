@@ -14,14 +14,14 @@
 
 **Files:**
 - Modify: `ui/package.json`
-- Create: `ui/server.js`
+- Create: `ui/server.ts`
 
 **Step 1: Install dependencies**
-Run: `npm install express cors concurrently --save-dev`
+Run: `npm install express cors concurrently tsx @types/express @types/cors --save-dev`
 Expected: `package.json` updated.
 
 **Step 2: Create basic server structure**
-Write minimal Express server in `ui/server.js` with a health check.
+Write minimal Express server in `ui/server.ts` with a health check.
 
 **Step 3: Commit setup**
 ```bash
@@ -34,7 +34,7 @@ git commit -m "chore: setup backend infrastructure for remote scanning"
 ### Task 2: Implement Scan API
 
 **Files:**
-- Modify: `ui/server.js`
+- Modify: `ui/server.ts`
 
 **Step 1: Implement POST /api/scan**
 Add logic to:
@@ -44,12 +44,12 @@ Add logic to:
 4. Cleanup `./cloned_temp`.
 
 **Step 2: Test API manually**
-Run: `node ui/server.js` in one terminal and `curl -X POST http://localhost:3001/api/scan -H "Content-Type: application/json" -d '{"url":"https://github.com/user/repo"}'` in another.
+Run: `npx tsx ui/server.ts` in one terminal and `curl -X POST http://localhost:3001/api/scan -H "Content-Type: application/json" -d '{"url":"https://github.com/user/repo"}'` in another.
 Expected: Success response and updated `data.json`.
 
 **Step 3: Commit API**
 ```bash
-git add ui/server.js
+git add ui/server.ts
 git commit -m "feat: implement remote scan API endpoint"
 ```
 
@@ -100,7 +100,7 @@ git commit -m "feat: integrate remote scanning into main application"
 
 **Step 1: Update dev script**
 Use `concurrently` to run both Vite and the Express server.
-`"dev": "concurrently \"vite\" \"node server.js\""`
+`"dev": "concurrently \"vite\" \"tsx server.ts\""`
 
 **Step 2: Final verification**
 Run `npm run dev` and test the full flow in the browser.
