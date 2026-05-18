@@ -15,6 +15,10 @@ const TYPE_ICONS: Record<string, React.ElementType> = {
   structs: Box,
   enums: Layers,
   traits: Zap,
+  classes: Box,
+  interfaces: Zap,
+  types: Layers,
+  imports: File,
   default: File
 };
 

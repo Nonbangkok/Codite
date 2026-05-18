@@ -48,6 +48,7 @@ const TYPE_RGB: Record<string, readonly [number, number, number]> = {
   interfaces: [152, 195, 121],
   types: [224, 108, 117],
   folders: [244, 214, 118],
+  imports: [142, 186, 175],
   default: [162, 167, 182],
 };
 const TYPE_RGB_BRIGHT: Record<string, readonly [number, number, number]> = {
@@ -59,6 +60,7 @@ const TYPE_RGB_BRIGHT: Record<string, readonly [number, number, number]> = {
   interfaces: [181, 233, 144],
   types: [255, 129, 140],
   folders: [255, 235, 150],
+  imports: [192, 225, 215],
   default: [193, 199, 217],
 };
 const LANGUAGE_RGB: Record<string, readonly [number, number, number]> = {
@@ -66,6 +68,9 @@ const LANGUAGE_RGB: Record<string, readonly [number, number, number]> = {
   typescript: [0, 122, 204],
   javascript: [247, 223, 30],
   python: [114, 159, 207],
+  go: [0, 162, 217],
+  c: [168, 187, 217],
+  cpp: [0, 127, 192],
   default: [162, 167, 182],
 };
 const LANGUAGE_RGB_BRIGHT: Record<string, readonly [number, number, number]> = {
@@ -73,6 +78,9 @@ const LANGUAGE_RGB_BRIGHT: Record<string, readonly [number, number, number]> = {
   typescript: [80, 180, 255],
   javascript: [255, 248, 100],
   python: [160, 200, 240],
+  go: [100, 210, 245],
+  c: [210, 225, 245],
+  cpp: [70, 180, 230],
   default: [193, 199, 217],
 };
 const HOVER_RGB: readonly [number, number, number] = [244, 214, 118];

@@ -13,6 +13,9 @@ const LANGUAGE_BADGE: Record<string, { label: string; color: string }> = {
   typescript: { label: 'TS', color: '#3178c6' },
   javascript: { label: 'JS', color: '#f7df1e' },
   python: { label: 'PY', color: '#4b8bbe' },
+  go: { label: 'GO', color: '#00add8' },
+  c: { label: 'C', color: '#a8bbfd' },
+  cpp: { label: 'C++', color: '#007fc0' },
 };
 
 const HIGHLIGHTER_LANGUAGE: Record<string, string> = {
@@ -20,6 +23,9 @@ const HIGHLIGHTER_LANGUAGE: Record<string, string> = {
   typescript: 'typescript',
   javascript: 'javascript',
   python: 'python',
+  go: 'go',
+  c: 'c',
+  cpp: 'cpp',
 };
 
 export const CodePreviewPanel: React.FC<CodePreviewPanelProps> = ({ selectedNode, onClose }) => {
