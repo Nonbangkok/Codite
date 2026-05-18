@@ -139,3 +139,35 @@ fn c_parser_extracts_all_constructs_and_resolves_includes() {
         links
     );
 }
+
+#[test]
+fn cpp_parser_extracts_all_constructs_and_resolves_includes() {
+    let parser = CppParser;
+    let mut nodes: Vec<Node> = Vec::new();
+    let mut links: Vec<Link> = Vec::new();
+
+    parser.parse(&fixture("cpp/sample.cpp"), &mut nodes, &mut links);
+
+    assert!(nodes.iter().all(|n| n.language == "cpp"));
+    assert_eq!(count_group(&nodes, "functions"), 2);
+
+    let imported_path = fixture("cpp/math_utils.hpp").to_string_lossy().into_owned();
+    assert!(
+        links.iter().any(|l| l.link_type == "imports_module" && l.target == imported_path),
+        "expected imports_module link to {}, got {:?}",
+        imported_path,
+        links
+    );
+}
+
+#[test]
+fn cpp_parser_extracts_classes_and_namespaces() {
+    let parser = CppParser;
+    let mut nodes: Vec<Node> = Vec::new();
+    let mut links: Vec<Link> = Vec::new();
+
+    parser.parse(&fixture("cpp/math_utils.hpp"), &mut nodes, &mut links);
+
+    assert!(nodes.iter().all(|n| n.language == "cpp"));
+    assert_eq!(count_group(&nodes, "classes"), 1);
+}
