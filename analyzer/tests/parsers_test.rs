@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use analyzer::models::{Link, Node};
-use analyzer::parsers::{LanguageParser, TypeScriptParser, JavaScriptParser, PythonParser};
+use analyzer::parsers::{LanguageParser, TypeScriptParser, JavaScriptParser, PythonParser, GoParser, CParser, CppParser};
 
 fn fixture(rel: &str) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -95,4 +95,26 @@ fn python_parser_extracts_constructs_and_tags_language() {
     assert_eq!(count_group(&nodes, "functions"), 4, "expected __init__ + my_method + my_function + decorated_function");
     assert_eq!(count_group(&nodes, "classes"), 1);
     assert_eq!(count_group(&nodes, "imports"), 2);
+}
+
+#[test]
+fn go_parser_extracts_all_constructs_and_resolves_relative_imports() {
+    let parser = GoParser;
+    let mut nodes: Vec<Node> = Vec::new();
+    let mut links: Vec<Link> = Vec::new();
+
+    parser.parse(&fixture("go/sample.go"), &mut nodes, &mut links);
+    assert!(nodes.iter().all(|n| n.language == "go"));
+    assert_eq!(count_group(&nodes, "structs"), 1);
+    assert_eq!(count_group(&nodes, "interfaces"), 1);
+    assert_eq!(count_group(&nodes, "types"), 1);
+    assert_eq!(count_group(&nodes, "functions"), 1);
+
+    let imported_path = fixture("go/imported.go").to_string_lossy().into_owned();
+    assert!(
+        links.iter().any(|l| l.link_type == "imports_module" && l.target == imported_path),
+        "expected imports_module link to {}, got {:?}",
+        imported_path,
+        links
+    );
 }

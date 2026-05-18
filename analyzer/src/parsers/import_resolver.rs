@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-const CANDIDATE_EXTENSIONS: &[&str] = &[".ts", ".tsx", ".js", ".jsx"];
+const CANDIDATE_EXTENSIONS: &[&str] = &[".ts", ".tsx", ".js", ".jsx", ".go", ".c", ".h", ".cpp", ".hpp"];
 const INDEX_FILES: &[&str] = &["index.ts", "index.tsx", "index.js", "index.jsx"];
 
 /// Extracts the specifier from an `import_statement` source string.
