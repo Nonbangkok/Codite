@@ -208,11 +208,13 @@ impl LanguageParser for GoParser {
 
                                     if clean_spec.starts_with("./") || clean_spec.starts_with("../") {
                                         if let Some(resolved) = import_resolver::resolve_relative(path, clean_spec) {
-                                            links.push(Link {
-                                                source: full_path.clone(),
-                                                target: resolved.to_string_lossy().into_owned(),
-                                                link_type: "imports_module".to_string(),
-                                            });
+                                            if let Ok(canonical) = std::fs::canonicalize(resolved) {
+                                                links.push(Link {
+                                                    source: full_path.clone(),
+                                                    target: canonical.to_string_lossy().into_owned(),
+                                                    link_type: "imports_module".to_string(),
+                                                });
+                                            }
                                         }
                                     } else {
                                         let path_parts: Vec<&str> = clean_spec.split('/').collect();

@@ -118,3 +118,24 @@ fn go_parser_extracts_all_constructs_and_resolves_relative_imports() {
         links
     );
 }
+
+#[test]
+fn c_parser_extracts_all_constructs_and_resolves_includes() {
+    let parser = CParser;
+    let mut nodes: Vec<Node> = Vec::new();
+    let mut links: Vec<Link> = Vec::new();
+
+    parser.parse(&fixture("c/sample.c"), &mut nodes, &mut links);
+
+    assert!(nodes.iter().all(|n| n.language == "c"));
+    assert_eq!(count_group(&nodes, "functions"), 1);
+    assert_eq!(count_group(&nodes, "types"), 1);
+
+    let imported_path = fixture("c/helper.h").to_string_lossy().into_owned();
+    assert!(
+        links.iter().any(|l| l.link_type == "imports_module" && l.target == imported_path),
+        "expected imports_module link to {}, got {:?}",
+        imported_path,
+        links
+    );
+}
