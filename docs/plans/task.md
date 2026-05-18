@@ -1,9 +1,9 @@
-# Task Tracker: Remote Repository Visualization
+# Task Tracker: Go, C, and C++ Parsers
 
 | Task | Status | Description |
 | :--- | :--- | :--- |
 | **Task 1** | [x] | Setup Backend Infrastructure |
-| **Task 2** | [x] | Implement Scan API |
-| **Task 3** | [x] | Create RemoteScanner UI Component |
-| **Task 4** | [x] | Integrate with App.tsx |
-| **Task 5** | [x] | Final Automation |
+| **Task 2** | [x] | Implement Go Parser & Test Fixtures |
+| **Task 3** | [x] | Implement C Parser & Test Fixtures |
+| **Task 4** | [x] | Implement C++ Parser & Test Fixtures |
+| **Task 5** | [x] | End-to-End Local Execution & Verification |
