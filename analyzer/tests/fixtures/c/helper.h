@@ -1,0 +1,3 @@
+struct Connection {
+    int port;
+};
