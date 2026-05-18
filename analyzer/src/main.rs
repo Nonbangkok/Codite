@@ -3,7 +3,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use analyzer::models::GraphData;
-use analyzer::parsers::{LanguageParser, RustParser, TypeScriptParser, JavaScriptParser, PythonParser, all_extensions, parser_for_path};
+use analyzer::parsers::{LanguageParser, RustParser, TypeScriptParser, JavaScriptParser, PythonParser, GoParser, CParser, CppParser, all_extensions, parser_for_path};
 use analyzer::scanner;
 use indicatif::{ProgressBar, ProgressStyle};
 
@@ -53,6 +53,9 @@ fn main() {
         Box::new(TypeScriptParser),
         Box::new(JavaScriptParser),
         Box::new(PythonParser),
+        Box::new(GoParser),
+        Box::new(CParser),
+        Box::new(CppParser),
     ];
     let extensions = all_extensions(&registry);
 

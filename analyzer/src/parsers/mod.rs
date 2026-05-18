@@ -10,6 +10,15 @@ pub use javascript::JavaScriptParser;
 pub mod python;
 pub use python::PythonParser;
 
+pub mod go;
+pub use go::GoParser;
+
+pub mod c;
+pub use c::CParser;
+
+pub mod cpp;
+pub use cpp::CppParser;
+
 pub mod import_resolver;
 
 use std::path::Path;
