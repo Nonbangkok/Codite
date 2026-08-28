@@ -27,3 +27,4 @@ The service exposes:
 - The Docker image sets `ANALYZER_BIN=/app/analyzer/analyzer`.
 - The server listens on `process.env.PORT`, which Render sets automatically — no manual port configuration is needed.
 - Scan results are written to the container filesystem, so they are ephemeral across redeploys and restarts.
+- `render.yaml` uses `plan: free`, which does not require a credit card. The free plan has trade-offs: the service spins down after 15 minutes of inactivity (the next request triggers a cold start), and build minutes/bandwidth are capped. Bump `plan` to `starter` or higher (card required) if always-on hosting is needed later.
