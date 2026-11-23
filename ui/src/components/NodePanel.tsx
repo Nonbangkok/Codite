@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
-import { Columns2, Copy, Crosshair, ExternalLink, Maximize2, PanelRight, Route, SplitSquareHorizontal, Star, X } from 'lucide-react';
+import { Columns2, Copy, Crosshair, ExternalLink, Maximize2, PanelRight, Radar, Route, SplitSquareHorizontal, Star, X } from 'lucide-react';
 import type { NodeData } from '../types';
 import type { GraphIndex, PathResult } from '../utils/graphIndex';
 import { KIND_LABEL, languageLabel, nodeKind, isSymbolId } from '../utils/nodeKinds';
@@ -67,6 +67,8 @@ interface NodePanelProps {
   onNoteChange: (note: string) => void;
   onCompare: () => void;
   comparing: boolean;
+  impactActive: boolean;
+  onImpact: () => void;
 }
 
 const ConnectionGroup = ({
@@ -287,6 +289,10 @@ export const NodePanel = (props: NodePanelProps) => {
           <button type="button" className="btn" onClick={props.onFindPath} title="Find how this connects to another node (P)">
             <Route size={14} aria-hidden="true" />
             Find path
+          </button>
+          <button type="button" className="btn" aria-pressed={props.impactActive} onClick={props.onImpact} title="Highlight everything that depends on this (I)">
+            <Radar size={14} aria-hidden="true" />
+            Impact
           </button>
           <button type="button" className="btn" aria-pressed={props.comparing} onClick={props.onCompare} title="Open another node side by side">
             <SplitSquareHorizontal size={14} aria-hidden="true" />

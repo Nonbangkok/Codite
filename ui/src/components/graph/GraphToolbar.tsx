@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Download, Keyboard, Link2, Maximize, Moon, Sun } from 'lucide-react';
+import { BoxSelect, Download, FolderTree, Keyboard, Link2, Maximize, Moon, Search, Sun, Tags, X } from 'lucide-react';
 import type { ThemeName } from '../../theme';
 import type { ColorMode } from './GraphView';
 
@@ -19,14 +19,14 @@ interface GraphToolbarProps {
   canShare: boolean;
   onCopyLink: () => void;
   onShowShortcuts: () => void;
+  viewMenu: React.ReactNode;
+  highlight: string;
+  onHighlightChange: (value: string) => void;
+  highlightCount: number;
+  onHighlightSubmit: () => void;
+  lassoMode: boolean;
+  onToggleLasso: () => void;
 }
-
-const Switch = ({ label, checked, onClick, hint }: { label: string; checked: boolean; onClick: () => void; hint: string }) => (
-  <button type="button" role="switch" aria-checked={checked} className="switch" onClick={onClick} title={hint}>
-    <span>{label}</span>
-    <span className="switch__track" aria-hidden="true" />
-  </button>
-);
 
 const EXPORTS: { format: ExportFormat; label: string; detail: string }[] = [
   { format: 'png', label: 'Image', detail: 'PNG' },
@@ -105,7 +105,7 @@ const ExportMenu = ({ onExport }: { onExport: (format: ExportFormat) => void }) 
 export const GraphToolbar = (props: GraphToolbarProps) => (
   <div className="floating toolbar" role="toolbar" aria-label="Graph view options">
     <div className="segmented" role="group" aria-label="Color nodes by">
-      {(['kind', 'language'] as const).map((mode) => (
+      {(['kind', 'language', 'heat'] as const).map((mode) => (
         <button
           key={mode}
           type="button"
@@ -113,13 +113,56 @@ export const GraphToolbar = (props: GraphToolbarProps) => (
           onClick={() => props.onColorModeChange(mode)}
           title="Color nodes by (C)"
         >
-          {mode === 'kind' ? 'Kind' : 'Language'}
+          {mode === 'kind' ? 'Kind' : mode === 'language' ? 'Language' : 'Heat'}
         </button>
       ))}
     </div>
-    <Switch label="Names" checked={props.showNames} onClick={props.onToggleNames} hint="Show all node names (N)" />
-    <Switch label="Folders" checked={props.showFolders} onClick={props.onToggleFolders} hint="Show folder nodes (D)" />
+    <button type="button" className="icon-btn" role="switch" aria-checked={props.showNames} aria-label="Show all node names" title="Show all node names (N)" onClick={props.onToggleNames}>
+      <Tags size={16} />
+    </button>
+    <button type="button" className="icon-btn" role="switch" aria-checked={props.showFolders} aria-label="Show folder nodes" title="Show folder nodes (D)" onClick={props.onToggleFolders}>
+      <FolderTree size={16} />
+    </button>
     <span className="toolbar__sep" aria-hidden="true" />
+    <div className="toolbar__find" role="search">
+      <Search size={14} aria-hidden="true" />
+      <input
+        type="search"
+        aria-label="Highlight nodes by name"
+        placeholder="Highlight"
+        value={props.highlight}
+        onChange={(e) => props.onHighlightChange(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') props.onHighlightSubmit();
+          if (e.key === 'Escape') {
+            e.stopPropagation();
+            props.onHighlightChange('');
+            (e.target as HTMLInputElement).blur();
+          }
+        }}
+      />
+      {props.highlight && (
+        <>
+          <span className="toolbar__count" aria-live="polite">
+            {props.highlightCount}
+          </span>
+          <button type="button" className="icon-btn icon-btn--sm" aria-label="Clear highlight" onClick={() => props.onHighlightChange('')}>
+            <X size={12} />
+          </button>
+        </>
+      )}
+    </div>
+    <button
+      type="button"
+      className="icon-btn"
+      aria-pressed={props.lassoMode}
+      aria-label="Select an area"
+      title="Drag to select several nodes (hold Shift to add)"
+      onClick={props.onToggleLasso}
+    >
+      <BoxSelect size={16} />
+    </button>
+    {props.viewMenu}
     <button type="button" className="icon-btn" aria-label="Fit graph to screen" title="Fit graph to screen (F)" onClick={props.onFit}>
       <Maximize size={16} />
     </button>

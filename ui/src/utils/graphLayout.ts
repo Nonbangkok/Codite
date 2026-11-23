@@ -1,9 +1,6 @@
 import type { LinkData, NodeData } from '../types';
 
-export interface SimNode extends NodeData {
-  fx?: number | null;
-  fy?: number | null;
-}
+export type SimNode = NodeData;
 
 export interface SimLink extends Omit<LinkData, 'source' | 'target' | 'type'> {
   source: string | SimNode;

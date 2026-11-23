@@ -12,21 +12,39 @@ interface LegendProps {
   onShowOnly: (key: string) => void;
   onShowAll: () => void;
   defaultOpen?: boolean;
+  /** Heat mode: a gradient from low to high instead of a list. */
+  heat?: { label: string; gradient: string };
 }
 
 /** Map key for the graph. Click a row to hide or show it; Alt/Option-click to show only that row. */
-export const Legend = ({ mode, entries, hidden, colorOf, onToggle, onShowOnly, onShowAll, defaultOpen = true }: LegendProps) => {
+export const Legend = ({ mode, entries, hidden, colorOf, onToggle, onShowOnly, onShowAll, defaultOpen = true, heat }: LegendProps) => {
   const [open, setOpen] = useState(defaultOpen);
-  const label = (key: string) => (mode === 'kind' ? KIND_LABEL[key as NodeKind]?.many ?? key : languageLabel(key));
+  const label = (key: string) => (mode === 'language' ? languageLabel(key) : (KIND_LABEL[key as NodeKind]?.many ?? key));
   const hiddenCount = entries.filter((e) => hidden.has(e.key)).length;
 
+  if (heat) {
+    return (
+      <section className="floating legend" aria-labelledby="legend-title">
+        <div className="legend__head">
+          <h2 id="legend-title" className="legend__title">
+            {heat.label}
+          </h2>
+        </div>
+        <div className="legend__gradient" style={{ background: heat.gradient }} aria-hidden="true" />
+        <div className="legend__scale">
+          <span>Lower</span>
+          <span>Higher</span>
+        </div>
+      </section>
+    );
+  }
   if (entries.length === 0) return null;
 
   return (
     <section className="floating legend" aria-labelledby="legend-title">
       <div className="legend__head">
         <h2 id="legend-title" className="legend__title">
-          {mode === 'kind' ? 'Kinds' : 'Languages'}
+          {mode === 'language' ? 'Languages' : 'Kinds'}
         </h2>
         <button
           type="button"
