@@ -492,12 +492,28 @@ button {
   -webkit-backdrop-filter: blur(12px);
 }
 
-.scanbar {
+/* Scan bar and toolbar share one row that wraps, so they can never overlap however wide the
+   toolbar grows or however narrow the graph area gets. */
+.topbar {
+  position: absolute;
   top: 16px;
   left: 16px;
-  /* Sits left of the toolbar; the container query below stacks them when space runs out. */
-  width: min(520px, calc(100% - 640px));
-  min-width: 280px;
+  right: 16px;
+  z-index: 20;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 10px;
+  pointer-events: none;
+}
+.topbar > * {
+  pointer-events: auto;
+}
+.scanbar {
+  position: relative;
+  flex: 1 1 280px;
+  max-width: 520px;
+  min-width: 0;
   border-radius: var(--radius-pill);
   padding: 5px 5px 5px 16px;
 }
@@ -544,8 +560,11 @@ button {
 }
 
 .toolbar {
-  top: 16px;
-  right: 16px;
+  position: relative;
+  margin-left: auto;
+  flex: 0 1 auto;
+  max-width: 100%;
+  flex-wrap: wrap;
   display: flex;
   align-items: center;
   gap: 4px;
@@ -788,6 +807,12 @@ button {
 }
 .panel-slot[data-resizing='true'] {
   transition: none;
+}
+/* Keep at least ~360px for the graph and its scan bar beside the side panel. */
+@media (min-width: 768px) {
+  .panel-slot[data-size='normal'] {
+    max-width: max(300px, calc(100vw - var(--sidebar-w) - 366px));
+  }
 }
 .panel {
   width: 100%;
@@ -1080,15 +1105,6 @@ button {
 /* ───────────── Small screens ───────────── */
 /* When the graph area is too narrow for scan bar + toolbar side by side, stack them. */
 @container stage (max-width: 960px) {
-  .scanbar {
-    left: 16px;
-    right: 16px;
-    width: auto;
-    min-width: 0;
-  }
-  .toolbar {
-    top: 68px;
-  }
   .hovercard {
     bottom: 156px;
   }
@@ -1136,19 +1152,16 @@ button {
     z-index: 290;
     background: rgba(0, 0, 0, 0.45);
   }
-  .scanbar {
+  .topbar {
     top: 14px;
     left: 60px;
     right: 12px;
-    width: auto;
-    min-width: 0;
   }
   .toolbar {
-    top: 66px;
-    left: 12px;
-    right: 12px;
+    margin-left: 0;
+    flex-wrap: nowrap;
     overflow-x: auto;
-    justify-content: flex-start;
+    max-width: calc(100vw - 72px);
   }
   .toolbar .switch__label-long {
     display: none;
@@ -1694,7 +1707,7 @@ button {
     border: 1px solid var(--line);
     box-shadow: var(--shadow);
   }
-  .app[data-sidebar='collapsed'] .scanbar {
+  .app[data-sidebar='collapsed'] .topbar {
     left: 68px;
   }
 }

@@ -3,6 +3,7 @@ import { test } from 'vitest';
 
 import {
   createCrossingReductionForce,
+  MAX_CROSSING_PUSH,
   createDegreeMap,
   getCollisionRadius,
   getGraphChargeStrength,
@@ -170,4 +171,37 @@ test('crossing force does not starve later link pairs when sampling is limited',
   } finally {
     Math.random = originalRandom;
   }
+});
+
+test('crossing force stays bounded for a hub caught in many crossings (no flinging)', () => {
+  // A hub whose 40 spokes cross 40 parallel links: previously each crossing added a full kick,
+  // so the hub gained hundreds of px of velocity in one tick and the layout exploded.
+  const hub = { ...file('hub.rs'), x: 0, y: 0, vx: 0, vy: 0 };
+  const links: SimLink[] = [];
+  const nodes: SimNode[] = [hub];
+  for (let i = 0; i < 40; i++) {
+    const angle = (i / 40) * Math.PI * 2;
+    const spoke = { ...leaf(`s${i}.rs`), x: Math.cos(angle) * 200, y: Math.sin(angle) * 200, vx: 0, vy: 0 };
+    const left = { ...file(`l${i}.rs`), x: -250, y: -150 + i * 7.5, vx: 0, vy: 0 };
+    const right = { ...file(`r${i}.rs`), x: 250, y: -150 + i * 7.5 + 3, vx: 0, vy: 0 };
+    nodes.push(spoke, left, right);
+    links.push({ source: hub, target: spoke, type: 'contains' }, { source: left, target: right, type: 'imports' });
+  }
+  const force = createCrossingReductionForce(links, 100_000);
+  force(1);
+  const fastest = Math.max(...nodes.map((n) => Math.hypot(n.vx ?? 0, n.vy ?? 0)));
+  assert.ok(fastest > 0, 'some crossing was pushed');
+  assert.ok(fastest <= MAX_CROSSING_PUSH + 1e-9, `fastest node moved ${fastest.toFixed(1)} px in one tick`);
+});
+
+test('speed limit caps every node velocity and keeps direction', async () => {
+  const { createSpeedLimitForce, MAX_NODE_SPEED } = await import('../src/utils/graphLayout.ts');
+  const fast = { ...file('a.rs'), x: 0, y: 0, vx: 300, vy: 400 };
+  const slow = { ...file('b.rs'), x: 0, y: 0, vx: 3, vy: -4 };
+  const force = createSpeedLimitForce();
+  force.initialize([fast, slow]);
+  force();
+  assert.ok(Math.abs(Math.hypot(fast.vx, fast.vy) - MAX_NODE_SPEED) < 1e-9);
+  assert.ok(Math.abs(fast.vx / fast.vy - 0.75) < 1e-9);
+  assert.deepEqual([slow.vx, slow.vy], [3, -4]);
 });

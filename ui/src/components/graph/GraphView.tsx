@@ -6,6 +6,7 @@ import type { GraphData, LinkData, NodeData } from '../../types';
 import {
   createCrossingReductionForce,
   createDegreeMap,
+  createSpeedLimitForce,
   getCollisionRadius,
   getGraphChargeStrength,
   getGraphLinkDistance,
@@ -13,9 +14,10 @@ import {
   type SimLink,
   type SimNode,
 } from '../../utils/graphLayout';
-import { linkKey, neighborhood, type GraphIndex, type PathResult } from '../../utils/graphIndex';
+import { linkKey, neighborhood, parallelLinkCurvature, type GraphIndex, type PathResult } from '../../utils/graphIndex';
 import { KIND_LABEL, languageLabel, nodeKind } from '../../utils/nodeKinds';
 import { canvasToPng } from '../../utils/exportGraph';
+import { fixPositions, treeLayout } from '../../utils/treeLayout';
 import { emphasize, PALETTES, rgba, type RGB, type ThemeName } from '../../theme';
 import { useGraphCamera, type CameraTarget } from '../../hooks/useGraphCamera';
 import { useElementSize } from '../../hooks/useElementSize';
@@ -102,7 +104,7 @@ export const GraphView = forwardRef<GraphHandle, GraphViewProps>((props, ref) =>
   const fgRef = useRef<ForceGraphRef | undefined>(undefined);
   const minimapRef = useRef<MinimapHandle>(null);
   const { width, height } = useElementSize(containerRef);
-  const { handleZoom, handleZoomEnd, beginProgrammaticMove } = useGraphCamera(
+  const { handleZoom, handleZoomEnd, beginProgrammaticMove, isProgrammaticRef } = useGraphCamera(
     containerRef,
     fgRef as unknown as React.RefObject<CameraTarget | undefined>,
   );
@@ -168,8 +170,12 @@ export const GraphView = forwardRef<GraphHandle, GraphViewProps>((props, ref) =>
     if (keys.length > 1) {
       const ring = 22 * Math.sqrt(nodes.length) + 40 * keys.length;
       const center = new Map(keys.map((k, i) => [k, [Math.cos((2 * Math.PI * i) / keys.length) * ring, Math.sin((2 * Math.PI * i) / keys.length) * ring]]));
-      fg.d3Force('x', d3.forceX<SimNode>((n) => center.get(groups!.keyOf(n.id))![0]).strength(0.09));
-      fg.d3Force('y', d3.forceY<SimNode>((n) => center.get(groups!.keyOf(n.id))![1]).strength(0.09));
+      // The library re-initializes forces with new nodes before this effect rebuilds `center`
+      // (e.g. a folder just collapsed into one node), so unknown groups fall back to the middle
+      // instead of crashing the simulation.
+      const at = (n: SimNode) => center.get(groups!.keyOf(n.id)) ?? [0, 0];
+      fg.d3Force('x', d3.forceX<SimNode>((n) => at(n)[0]).strength(0.09));
+      fg.d3Force('y', d3.forceY<SimNode>((n) => at(n)[1]).strength(0.09));
     } else {
       fg.d3Force('x', d3.forceX(0).strength(layout === 'tree' ? 0.004 : centering));
       fg.d3Force('y', d3.forceY(0).strength(centering));
@@ -179,8 +185,26 @@ export const GraphView = forwardRef<GraphHandle, GraphViewProps>((props, ref) =>
       'radial',
       ringOf ? d3.forceRadial<SimNode>((n) => ringOf(n.id) * Math.max(70, 40 + sqrtCount * 4), 0, 0).strength(0.9) : null,
     );
+    // Re-add last so it runs after every other force in the tick.
+    fg.d3Force('speedLimit', null);
+    fg.d3Force('speedLimit', createSpeedLimitForce() as unknown as Parameters<typeof fg.d3Force>[1]);
     fg.d3ReheatSimulation?.();
   }, [data, isLarge, layout, ringOf, sizeOf, groups]);
+
+  // Tree layout: fixed, overlap-free positions computed for the visible graph. Leaving the tree
+  // releases them (the app then restores the user's own pins).
+  const wasTree = useRef(false);
+  useEffect(() => {
+    if (layout === 'tree') {
+      fixPositions(data.nodes, treeLayout(data.nodes, data.links));
+      wasTree.current = true;
+      fgRef.current?.d3ReheatSimulation?.();
+    } else if (wasTree.current) {
+      fixPositions(data.nodes, null);
+      wasTree.current = false;
+      fgRef.current?.d3ReheatSimulation?.();
+    }
+  }, [layout, data]);
 
   const fitTo = useCallback(
     (ids?: ReadonlySet<string>, duration = 600) => {
@@ -203,6 +227,19 @@ export const GraphView = forwardRef<GraphHandle, GraphViewProps>((props, ref) =>
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only the key should retrigger
   }, [fitRequest.key]);
+
+  // Once the user zooms or pans, a fit that was waiting for the layout to settle would yank
+  // the view away from where they put it.
+  const cancelPendingFit = useCallback(() => {
+    pendingFit.current = null;
+  }, []);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    el.addEventListener('wheel', cancelPendingFit, { passive: true, capture: true });
+    return () => el.removeEventListener('wheel', cancelPendingFit, { capture: true });
+  }, [cancelPendingFit]);
 
   const handleEngineStop = useCallback(() => {
     if (pendingFit.current) {
@@ -384,6 +421,19 @@ export const GraphView = forwardRef<GraphHandle, GraphViewProps>((props, ref) =>
     [groups, data.nodes, theme],
   );
 
+  const curvature = useMemo(() => parallelLinkCurvature(data.links), [data.links]);
+  // In the tree layout, a link between two nodes on the same row would run straight through
+  // every node in between; arc it instead.
+  const sameRow = useCallback((link: LinkData) => {
+    const s = typeof link.source === 'object' ? link.source : null;
+    const t = typeof link.target === 'object' ? link.target : null;
+    return !!s && !!t && s.fy !== undefined && s.fy === t.fy;
+  }, []);
+  const linkCurvature = useCallback(
+    (link: LinkData) => curvature.get(link) ?? (layout === 'tree' && sameRow(link) ? 0.35 : 0),
+    [curvature, layout, sameRow],
+  );
+
   // Per-link accessors only matter while something is highlighted; otherwise pass constants.
   const hasLinkHighlight = hoverLinks.size > 0 || (path?.linkKeys.size ?? 0) > 0;
 
@@ -471,6 +521,7 @@ export const GraphView = forwardRef<GraphHandle, GraphViewProps>((props, ref) =>
       zoomBy(factor) {
         const fg = fgRef.current;
         if (!fg) return;
+        cancelPendingFit();
         const k = fg.zoom();
         beginProgrammaticMove(300);
         fg.zoom(Math.max(0.05, Math.min(10, (typeof k === 'number' ? k : 1) * factor)), 300);
@@ -485,8 +536,25 @@ export const GraphView = forwardRef<GraphHandle, GraphViewProps>((props, ref) =>
         return out;
       },
     }),
-    [fitTo, beginProgrammaticMove, palette.background, data.nodes],
+    [fitTo, beginProgrammaticMove, palette.background, data.nodes, cancelPendingFit],
   );
+
+  // Development-only handle for automated graph checks (positions, link endpoints, camera).
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    (window as unknown as { __coditeGraph?: unknown }).__coditeGraph = {
+      data,
+      layout,
+      screenOf: (id: string) => {
+        const n = data.nodes.find((x) => x.id === id);
+        const fg = fgRef.current;
+        if (!n || !fg || n.x === undefined || n.y === undefined) return null;
+        return fg.graph2ScreenCoords(n.x, n.y);
+      },
+      zoom: () => fgRef.current?.zoom(),
+      fg: fgRef.current,
+    };
+  });
 
   const hoverKind = hoverNode ? nodeKind(hoverNode) : null;
   const hoverNeighbors = useMemo(() => (hoverNode ? neighborhood(index, hoverNode.id, 1).size - 1 : 0), [hoverNode, index]);
@@ -510,14 +578,13 @@ export const GraphView = forwardRef<GraphHandle, GraphViewProps>((props, ref) =>
           height={height}
           graphData={data}
           backgroundColor="rgba(0,0,0,0)"
-          dagMode={layout === 'tree' ? 'td' : undefined}
-          dagLevelDistance={70}
-          onDagError={() => undefined}
           nodeCanvasObject={paintNode}
-          nodePointerAreaPaint={(node, color, ctx) => {
+          nodePointerAreaPaint={(node, color, ctx, globalScale) => {
+            // At least 6 screen pixels to grab, so small nodes stay clickable and draggable when
+            // zoomed out (they were ~1px wide and drags turned into pans).
             ctx.fillStyle = color;
             ctx.beginPath();
-            ctx.arc(node.x ?? 0, node.y ?? 0, radiusFor(sizeOf(node)) + 2, 0, 2 * Math.PI);
+            ctx.arc(node.x ?? 0, node.y ?? 0, Math.max(radiusFor(sizeOf(node)) + 2, 6 / globalScale), 0, 2 * Math.PI);
             ctx.fill();
           }}
           nodeLabel={() => ''}
@@ -529,7 +596,10 @@ export const GraphView = forwardRef<GraphHandle, GraphViewProps>((props, ref) =>
             props.onNodePinned(node as NodeData);
           }}
           onBackgroundClick={props.onBackgroundClick}
-          onZoom={handleZoom}
+          onZoom={(t) => {
+            if (!isProgrammaticRef()) cancelPendingFit();
+            handleZoom(t);
+          }}
           onZoomEnd={handleZoomEnd}
           onEngineStop={handleEngineStop}
           onRenderFramePre={groups ? paintGroups : undefined}
@@ -540,6 +610,7 @@ export const GraphView = forwardRef<GraphHandle, GraphViewProps>((props, ref) =>
           linkWidth={hasLinkHighlight ? linkWidth : isLarge ? 0.5 : 0.8}
           linkDirectionalArrowLength={hasLinkHighlight ? arrowLength : 0}
           linkDirectionalArrowRelPos={0.92}
+          linkCurvature={curvature.size || layout === 'tree' ? linkCurvature : 0}
           d3AlphaDecay={isLarge ? 0.045 : 0.028}
           cooldownTime={isLarge ? 8000 : 15000}
         />

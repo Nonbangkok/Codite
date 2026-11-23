@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use analyzer::enrich::{build_output, call_links, find_calls, kind_of, line_ranges};
+use analyzer::enrich::{build_output, call_links, dedupe, find_calls, kind_of, line_ranges};
 use analyzer::models::{Link, Node};
 use analyzer::parsers::{
     CParser, CppParser, GoParser, JavaScriptParser, LanguageParser, PythonParser, RustParser,
@@ -261,5 +261,45 @@ fn method_calls_and_other_languages_do_not_resolve_by_name_alone() {
     RustParser.parse(&dir.join("lib.rs"), &mut nodes, &mut links);
     let calls = call_links(&nodes, &links, &line_ranges(&nodes));
     assert!(calls.is_empty(), "unexpected calls: {calls:?}");
+    fs::remove_dir_all(dir).ok();
+}
+
+#[test]
+fn duplicate_ids_are_merged_keeping_the_fullest_declaration() {
+    let dir = temp_dir("dupes");
+    // Two local types with the same name in one Go file, and a C forward declaration + definition.
+    fs::write(dir.join("a.go"), "package a\nfunc f() {\n\ttype key struct{}\n}\nfunc g() {\n\ttype key struct{ name string }\n}\n").unwrap();
+    fs::write(dir.join("b.c"), "struct node;\nstruct node { int v; };\n").unwrap();
+    let (mut nodes, mut links) = (Vec::new(), Vec::new());
+    GoParser.parse(&dir.join("a.go"), &mut nodes, &mut links);
+    CParser.parse(&dir.join("b.c"), &mut nodes, &mut links);
+    let before = nodes
+        .iter()
+        .filter(|n| n.id.ends_with("::struct::key"))
+        .count();
+    let (nodes, links) = dedupe(nodes, links);
+    let mut ids: Vec<&str> = nodes.iter().map(|n| n.id.as_str()).collect();
+    let total = ids.len();
+    ids.sort();
+    ids.dedup();
+    assert_eq!(ids.len(), total, "ids are unique after dedupe");
+    if before > 1 {
+        let key = nodes
+            .iter()
+            .find(|n| n.id.ends_with("::struct::key"))
+            .unwrap();
+        assert!(
+            key.code.as_deref().unwrap_or("").contains("name string"),
+            "kept the longer declaration"
+        );
+    }
+    let mut keys: Vec<(String, String, String)> = links
+        .iter()
+        .map(|l| (l.source.clone(), l.target.clone(), l.link_type.clone()))
+        .collect();
+    let n = keys.len();
+    keys.sort();
+    keys.dedup();
+    assert_eq!(keys.len(), n, "links are unique after dedupe");
     fs::remove_dir_all(dir).ok();
 }

@@ -83,3 +83,36 @@ describe('layout', () => {
     expect(nodes[1].fx).toBeUndefined();
   });
 });
+
+describe('root folder', () => {
+  test('the project root is not offered as a collapsible group', () => {
+    const flat = [
+      { id: 'proj/a.js', label: 'a', group: 'proj', language: 'javascript', val: 1 },
+      { id: 'proj/b.js', label: 'b', group: 'proj', language: 'javascript', val: 1 },
+    ];
+    expect(folderGroups(flat, 2)).toEqual([]);
+  });
+});
+
+describe('new nodes start in place', () => {
+  test('a collapsed folder starts at the centre of what it replaces', () => {
+    const placed: GraphData = {
+      nodes: [
+        { id: 'r/f/a.ts', label: 'a', group: 'f', language: 'ts', val: 1, x: 100, y: 0 },
+        { id: 'r/f/b.ts', label: 'b', group: 'f', language: 'ts', val: 1, x: 300, y: 40 },
+        { id: 'r/g/c.ts', label: 'c', group: 'g', language: 'ts', val: 1, x: -50, y: -50 },
+      ],
+      links: [],
+    };
+    const folder = collapseFolders(placed, new Set(['r/f'])).nodes.find((n) => n.id === 'r/f')!;
+    expect([folder.x, folder.y]).toEqual([200, 20]);
+  });
+  test('folder nodes start at the centre of their files', async () => {
+    const { buildFolderNodes } = await import('../src/utils/treeUtils');
+    const { nodes } = buildFolderNodes([
+      { id: 'r/src/a.ts', label: 'a', group: 'src', language: 'ts', val: 1, x: 0, y: 0 },
+      { id: 'r/src/b.ts', label: 'b', group: 'src', language: 'ts', val: 1, x: 10, y: 20 },
+    ]);
+    expect(nodes.find((n) => n.id === 'r/src')).toMatchObject({ x: 5, y: 10 });
+  });
+});

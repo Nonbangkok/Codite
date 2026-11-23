@@ -106,10 +106,18 @@ const normalFor = (source: SimNode, target: SimNode): { x: number; y: number } =
   return { x: -dy / length, y: dx / length };
 };
 
-const pushNode = (node: SimNode, normal: { x: number; y: number }, amount: number) => {
+/** Largest velocity change the crossing force may add to one node in one tick, per unit alpha. */
+export const MAX_CROSSING_PUSH = 12;
+
+type Push = { x: number; y: number; count: number };
+
+const addPush = (pushes: Map<SimNode, Push>, node: SimNode, normal: { x: number; y: number }, amount: number) => {
   if (node.fx != null || node.fy != null) return;
-  node.vx = (node.vx ?? 0) + normal.x * amount;
-  node.vy = (node.vy ?? 0) + normal.y * amount;
+  const p = pushes.get(node) ?? { x: 0, y: 0, count: 0 };
+  p.x += normal.x * amount;
+  p.y += normal.y * amount;
+  p.count++;
+  pushes.set(node, p);
 };
 
 export const createCrossingReductionForce = (
@@ -134,6 +142,9 @@ export const createCrossingReductionForce = (
   const force = (alpha: number) => {
     if (alpha < 0.003 || links.length < 2) return;
 
+    // Pushes are averaged per node and capped: a hub in many crossings would otherwise collect
+    // dozens of full-strength kicks in one tick and fling itself and its neighbors away.
+    const pushes = new Map<SimNode, Push>();
     const checks = Math.min(samplesPerTick, (links.length * (links.length - 1)) >> 1);
     for (let i = 0; i < checks; i++) {
       const first = links[firstIndex];
@@ -161,14 +172,53 @@ export const createCrossingReductionForce = (
       ) || -1;
       const push = 36 * alpha;
 
-      pushNode(a, firstNormal, firstDirection * push);
-      pushNode(b, firstNormal, firstDirection * push);
-      pushNode(c, secondNormal, secondDirection * push);
-      pushNode(d, secondNormal, secondDirection * push);
+      addPush(pushes, a, firstNormal, firstDirection * push);
+      addPush(pushes, b, firstNormal, firstDirection * push);
+      addPush(pushes, c, secondNormal, secondDirection * push);
+      addPush(pushes, d, secondNormal, secondDirection * push);
+    }
+
+    const cap = MAX_CROSSING_PUSH * alpha;
+    for (const [node, p] of pushes) {
+      let x = p.x / p.count;
+      let y = p.y / p.count;
+      const length = Math.hypot(x, y);
+      if (length > cap) {
+        x *= cap / length;
+        y *= cap / length;
+      }
+      node.vx = (node.vx ?? 0) + x;
+      node.vy = (node.vy ?? 0) + y;
     }
   };
 
   force.initialize = () => undefined;
 
+  return force;
+};
+
+/** Fastest a node may move in one simulation tick (graph units). */
+export const MAX_NODE_SPEED = 24;
+
+/**
+ * Caps every node's velocity. Added after the other forces so big rearrangements (switching
+ * layouts, grouping folders, showing a subset) glide instead of flinging nodes across the screen.
+ */
+export const createSpeedLimitForce = (maxSpeed = MAX_NODE_SPEED) => {
+  let nodes: SimNode[] = [];
+  const force = () => {
+    for (const n of nodes) {
+      const vx = n.vx ?? 0;
+      const vy = n.vy ?? 0;
+      const speed = Math.hypot(vx, vy);
+      if (speed > maxSpeed) {
+        n.vx = (vx / speed) * maxSpeed;
+        n.vy = (vy / speed) * maxSpeed;
+      }
+    }
+  };
+  force.initialize = (all: SimNode[]) => {
+    nodes = all;
+  };
   return force;
 };

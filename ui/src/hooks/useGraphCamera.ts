@@ -255,5 +255,8 @@ export const useGraphCamera = (
     [graphRef],
   );
 
-  return { handleZoom, handleZoomEnd, beginProgrammaticMove };
+  /** True while the camera is being moved by code rather than by the user. */
+  const isProgrammaticRef = useCallback(() => isProgrammatic.current, []);
+
+  return { handleZoom, handleZoomEnd, beginProgrammaticMove, isProgrammaticRef };
 };

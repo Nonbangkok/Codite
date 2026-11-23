@@ -75,7 +75,9 @@ export const folderGroups = (nodes: readonly NodeData[], depth: number): FolderG
     const key = folderAtDepth(n.id, depth);
     counts.set(key, (counts.get(key) ?? 0) + 1);
   }
+  // The project root itself is not a folder group: collapsing it would hide everything.
   return [...counts]
+    .filter(([key]) => key.includes('/'))
     .map(([key, count]) => ({ key, label: key.split('/').slice(1).join('/') || key || '(root)', count }))
     .sort((a, b) => b.count - a.count || a.key.localeCompare(b.key));
 };
@@ -93,11 +95,21 @@ export const collapseFolders = (graph: GraphData, collapsed: ReadonlySet<string>
     return null;
   };
   const counts = new Map<string, number>();
+  const centroid = new Map<string, { x: number; y: number; n: number }>();
   const nodes: NodeData[] = [];
   for (const n of graph.nodes) {
     const f = owner(n.id);
     if (f === null) nodes.push(n);
-    else if (n.id !== f) counts.set(f, (counts.get(f) ?? 0) + 1);
+    else if (n.id !== f) {
+      counts.set(f, (counts.get(f) ?? 0) + 1);
+      if (Number.isFinite(n.x) && Number.isFinite(n.y)) {
+        const c = centroid.get(f) ?? { x: 0, y: 0, n: 0 };
+        c.x += n.x!;
+        c.y += n.y!;
+        c.n++;
+        centroid.set(f, c);
+      }
+    }
   }
   for (const [folder, count] of counts) {
     // Reuse the same object across renders so the simulation keeps its position.
@@ -105,6 +117,10 @@ export const collapseFolders = (graph: GraphData, collapsed: ReadonlySet<string>
     let node = collapsedCache.get(key);
     if (!node) {
       const prev = [...collapsedCache.values()].find((c) => c.id === folder);
+      // Start where the folder's contents were, so the node appears in place instead of
+      // flying in from the middle of the graph.
+      const c = centroid.get(folder);
+      const start = prev?.x !== undefined ? { x: prev.x, y: prev.y } : c?.n ? { x: c.x / c.n, y: c.y / c.n } : { x: undefined, y: undefined };
       node = {
         id: folder,
         label: `${folder.split('/').pop()} (${count})`,
@@ -112,8 +128,8 @@ export const collapseFolders = (graph: GraphData, collapsed: ReadonlySet<string>
         language: '',
         val: Math.min(60, 10 + Math.sqrt(count) * 5),
         collapsedCount: count,
-        x: prev?.x,
-        y: prev?.y,
+        x: start.x,
+        y: start.y,
       };
       collapsedCache.set(key, node);
     }

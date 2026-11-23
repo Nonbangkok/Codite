@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Menu } from 'lucide-react';
-import type { GraphData, LinkData, NodeData } from './types';
+import type { GraphData, NodeData } from './types';
 import { GraphView, type ColorMode, type Emphasis, type FitRequest, type GraphHandle, type LayoutMode } from './components/graph/GraphView';
 import { ViewMenu, type SizeBy } from './components/graph/ViewMenu';
 import { interpolateRgbBasis, rgb as d3rgb } from 'd3';
@@ -40,8 +40,9 @@ import { ShortcutsDialog } from './components/ShortcutsDialog';
 import { OverviewDialog } from './components/OverviewDialog';
 import { computeInsights, insightsToMarkdown } from './utils/insights';
 import { hydrateCode, needsCode } from './utils/hydrate';
+import { prepareGraph } from './utils/prepareGraph';
 import { buildFileTree, buildFolderNodes } from './utils/treeUtils';
-import { buildGraphIndex, isInFolder, linkEndId, neighborhood, shortestPath, subgraph, type PathResult } from './utils/graphIndex';
+import { buildGraphIndex, isInFolder, neighborhood, rebindLinks, shortestPath, subgraph, type PathResult } from './utils/graphIndex';
 import { countBy, fileIdOf, KIND_LABEL, nodeKind } from './utils/nodeKinds';
 import { downloadBlob, graphToJson, graphToSvg, safeFilename } from './utils/exportGraph';
 import { loadRecentScans, readRepoParam, rememberScan, repoToUrl, withParams, withRepoParam } from './utils/share';
@@ -58,14 +59,6 @@ interface ScanState {
 }
 
 const EMPTY: GraphData = { nodes: [], links: [] };
-
-/** Drops import placeholder nodes (they clutter the graph) and links that point at missing nodes. */
-const prepareGraph = (data: GraphData): GraphData => {
-  const nodes = data.nodes.filter((n) => n.group !== 'imports');
-  const ids = new Set(nodes.map((n) => n.id));
-  const links = data.links.filter((l: LinkData) => ids.has(linkEndId(l.source)) && ids.has(linkEndId(l.target)));
-  return { nodes, links };
-};
 
 /** Accepts `owner/repo`, `github.com/owner/repo` or a full URL and returns `owner/repo` for display. */
 const repoLabel = (input: string) =>
@@ -374,6 +367,8 @@ function App() {
   }, [impact, highlightIds]);
 
   const displayedIndex = useMemo(() => buildGraphIndex(displayed), [displayed]);
+  // What the renderer gets: links never point at node objects that are no longer in the graph.
+  const renderGraph = useMemo(() => rebindLinks(displayed), [displayed]);
 
   const fitRequest = useMemo<FitRequest>(
     () => ({
@@ -520,6 +515,14 @@ function App() {
     setPinnedIds(new Set(Object.keys(saved.pinned).filter((id) => graph.nodes.some((n) => n.id === id))));
     setCollapsedFolders(new Set());
   }, [graph, notesScope]);
+
+  // Layouts can override fixed positions (the tree layout pins every node's y and releases it when
+  // you leave), so put the user's own pins back after every layout change.
+  useEffect(() => {
+    if (layout === 'tree') return;
+    const timer = setTimeout(() => applyLayout(graph.nodes, { pinned: loadLayout(notesScope).pinned, positions: {} }), 0);
+    return () => clearTimeout(timer);
+  }, [layout, graph, notesScope]);
 
   const onNodePinned = (node: NodeData) => {
     const saved = loadLayout(notesScope);
@@ -953,7 +956,7 @@ function App() {
 
         <GraphView
           ref={graphRef}
-          data={displayed}
+          data={renderGraph}
           index={displayedIndex}
           selectedId={selectedId}
           path={path}
@@ -998,6 +1001,7 @@ function App() {
           onNodePinned={onNodePinned}
         />
 
+        <div className="topbar">
         <ScanBar
           value={scanInput}
           onChange={setScanInput}
@@ -1072,6 +1076,7 @@ function App() {
             }
           />
         )}
+        </div>
 
         {hasData && (
           <Legend

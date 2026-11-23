@@ -68,13 +68,33 @@ export const buildFolderNodes = (
     }
   });
 
-  const nodes: NodeData[] = Array.from(folderSet).map(folderPath => ({
-    id: folderPath,
-    label: folderPath.split('/').pop() ?? folderPath,
-    group: 'folders',
-    language: '',
-    val: 4,
-  }));
+  // Start each folder at the centre of the files under it, so turning folders on doesn't fling
+  // new nodes in from random spots.
+  const sums = new Map<string, { x: number; y: number; n: number }>();
+  fileNodes.forEach(node => {
+    if (!Number.isFinite(node.x) || !Number.isFinite(node.y)) return;
+    const parts = node.id.split('/');
+    for (let i = 1; i < parts.length; i++) {
+      const key = parts.slice(0, i).join('/');
+      const s = sums.get(key) ?? { x: 0, y: 0, n: 0 };
+      s.x += node.x!;
+      s.y += node.y!;
+      s.n++;
+      sums.set(key, s);
+    }
+  });
+
+  const nodes: NodeData[] = Array.from(folderSet).map(folderPath => {
+    const s = sums.get(folderPath);
+    return {
+      id: folderPath,
+      label: folderPath.split('/').pop() ?? folderPath,
+      group: 'folders',
+      language: '',
+      val: 4,
+      ...(s?.n ? { x: s.x / s.n, y: s.y / s.n } : {}),
+    };
+  });
 
   const links: LinkData[] = [];
 
