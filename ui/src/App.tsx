@@ -37,6 +37,8 @@ import { FileExplorer } from './components/FileExplorer';
 import { ScanBar, type ScanStatus } from './components/ScanBar';
 import { EmptyState, FilteredOutState, ScanningState } from './components/StageStates';
 import { ShortcutsDialog } from './components/ShortcutsDialog';
+import { OverviewDialog } from './components/OverviewDialog';
+import { computeInsights, insightsToMarkdown } from './utils/insights';
 import { buildFileTree, buildFolderNodes } from './utils/treeUtils';
 import { buildGraphIndex, isInFolder, linkEndId, neighborhood, shortestPath, subgraph, type PathResult } from './utils/graphIndex';
 import { countBy, fileIdOf, KIND_LABEL, nodeKind } from './utils/nodeKinds';
@@ -129,6 +131,7 @@ function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = usePersistentState<boolean>('codite.sidebarCollapsed', false, (v) => typeof v === 'boolean');
   const importRef = useRef<HTMLInputElement>(null);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [showOverview, setShowOverview] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [panelWidth, setPanelWidth] = useState(480);
   const [panelSize, setPanelSize] = usePersistentState<PanelSize>('codite.panelSize', 'normal', (v) =>
@@ -659,6 +662,14 @@ function App() {
     }
   };
 
+  const insights = useMemo(() => (showOverview ? computeInsights(graph) : null), [showOverview, graph]);
+  const projectName = source.type === 'remote' ? source.repo : (fileTree[0]?.name ?? 'local project');
+  const exportReport = (format: 'md' | 'json') => {
+    if (!insights) return;
+    if (format === 'md') downloadBlob(new Blob([insightsToMarkdown(insights, projectName)], { type: 'text/markdown' }), `${exportName}-report.md`);
+    else downloadBlob(new Blob([JSON.stringify({ project: projectName, ...insights }, null, 2)], { type: 'application/json' }), `${exportName}-report.json`);
+  };
+
   const copyLink = async () => {
     try {
       await navigator.clipboard.writeText(window.location.href);
@@ -686,7 +697,7 @@ function App() {
         setSearchFocusSignal((n) => n + 1);
         return;
       }
-      if (e.defaultPrevented || isPaletteOpen || showShortcuts || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.defaultPrevented || isPaletteOpen || showShortcuts || showOverview || e.metaKey || e.ctrlKey || e.altKey) return;
       if (isTypingTarget(e.target)) return;
 
       switch (e.key) {
@@ -708,6 +719,9 @@ function App() {
         case 'i':
           if (selectedId) showImpact(impact?.root === selectedId ? null : selectedId);
           else notify('Select a node to see what depends on it.');
+          break;
+        case 'o':
+          setShowOverview(true);
           break;
         case 'l':
           setLayout((m) => (m === 'force' ? 'tree' : m === 'tree' ? 'radial' : 'force'));
@@ -767,7 +781,7 @@ function App() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [isPaletteOpen, showShortcuts, drawerOpen, path, focusDepth, selectedId, selectNode, openPathPicker, toggleTheme, notify, nodesById, panelSize, setPanelSize, setReaderSettings, goHistory, openPalette, setSidebarCollapsed, showImpact, impact, lassoMode, multiSelected, setLayout]);
+  }, [isPaletteOpen, showShortcuts, drawerOpen, path, focusDepth, selectedId, selectNode, openPathPicker, toggleTheme, notify, nodesById, panelSize, setPanelSize, setReaderSettings, goHistory, openPalette, setSidebarCollapsed, showImpact, impact, lassoMode, multiSelected, setLayout, showOverview]);
 
   // ── Sidebar resizing
   const startSidebarResize = (e: React.PointerEvent) => {
@@ -831,6 +845,13 @@ function App() {
     { id: 'save-layout', label: 'Save layout', keywords: 'positions', run: saveCurrentLayout },
     { id: 'unpin', label: 'Unpin all nodes', run: unpinAll },
     { id: 'reset-layout', label: 'Reset saved layout', run: resetLayout },
+    { id: 'overview', label: 'Open project overview and health checks', keywords: 'insights report stats cycles', shortcut: 'O', run: () => setShowOverview(true) },
+    {
+      id: 'report-md',
+      label: 'Export project report as Markdown',
+      keywords: 'insights health',
+      run: () => downloadBlob(new Blob([insightsToMarkdown(computeInsights(graph), projectName)], { type: 'text/markdown' }), `${exportName}-report.md`),
+    },
     { id: 'shortcuts', label: 'Show keyboard shortcuts', shortcut: '?', run: () => setShowShortcuts(true) },
     ...(source.type === 'remote' ? [{ id: 'link', label: 'Copy link to this view', run: () => void copyLink() }] : []),
   ];
@@ -976,6 +997,7 @@ function App() {
             canShare={source.type === 'remote'}
             onCopyLink={() => void copyLink()}
             onShowShortcuts={() => setShowShortcuts(true)}
+            onShowOverview={() => setShowOverview(true)}
             highlight={highlight}
             onHighlightChange={setHighlight}
             highlightCount={highlightIds?.size ?? 0}
@@ -1253,6 +1275,24 @@ function App() {
         />
       )}
       {showShortcuts && <ShortcutsDialog onClose={() => setShowShortcuts(false)} />}
+      {showOverview && insights && (
+        <OverviewDialog
+          project={projectName}
+          insights={insights}
+          languageColor={(lang) => rgba(palette.language[lang] ?? palette.language.default, 1)}
+          onOpen={(id) => {
+            setShowOverview(false);
+            selectNode(id);
+          }}
+          onShowNodes={(ids) => {
+            setShowOverview(false);
+            setMultiSelected(new Set(ids));
+            setSelectionOnly(true);
+          }}
+          onExport={exportReport}
+          onClose={() => setShowOverview(false)}
+        />
+      )}
     </div>
   );
 }

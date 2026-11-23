@@ -16,6 +16,7 @@ const SHORTCUTS:{ keys: string[]; action: string }[] = [
   { keys: ['X'], action: 'Focus on the selected node’s neighborhood' },
   { keys: ['P'], action: 'Find a path from the selected node' },
   { keys: ['I'], action: 'Show what depends on the selected node' },
+  { keys: ['O'], action: 'Project overview and health checks' },
   { keys: ['L'], action: 'Switch layout: force, tree, radial' },
   { keys: ['Shift', 'click'], action: 'Add a node to the multi-selection' },
   { keys: ['N'], action: 'Show or hide all names' },

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { BoxSelect, Download, FolderTree, Keyboard, Link2, Maximize, Moon, Search, Sun, Tags, X } from 'lucide-react';
+import { BoxSelect, Download, FolderTree, Keyboard, LayoutDashboard, Link2, Maximize, Moon, Search, Sun, Tags, X } from 'lucide-react';
 import type { ThemeName } from '../../theme';
 import type { ColorMode } from './GraphView';
 
@@ -19,6 +19,7 @@ interface GraphToolbarProps {
   canShare: boolean;
   onCopyLink: () => void;
   onShowShortcuts: () => void;
+  onShowOverview: () => void;
   viewMenu: React.ReactNode;
   highlight: string;
   onHighlightChange: (value: string) => void;
@@ -163,6 +164,9 @@ export const GraphToolbar = (props: GraphToolbarProps) => (
       <BoxSelect size={16} />
     </button>
     {props.viewMenu}
+    <button type="button" className="icon-btn" aria-label="Project overview" title="Overview and health checks (O)" onClick={props.onShowOverview}>
+      <LayoutDashboard size={16} />
+    </button>
     <button type="button" className="icon-btn" aria-label="Fit graph to screen" title="Fit graph to screen (F)" onClick={props.onFit}>
       <Maximize size={16} />
     </button>
