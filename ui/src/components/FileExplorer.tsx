@@ -1,173 +1,210 @@
-import React, { useState } from 'react';
-import { Folder, FileText, ChevronRight, ChevronDown, X } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { ChevronDown, ChevronRight, FileText, Folder, X } from 'lucide-react';
 import type { FileTreeItem } from '../utils/treeUtils';
+import { fileIdOf } from '../utils/nodeKinds';
 
 interface FileExplorerProps {
   tree: FileTreeItem[];
+  sourceLabel: string;
   activeFolderPath: string | null;
+  selectedId: string | null;
   onFolderSelect: (path: string | null) => void;
   onFileSelect: (id: string) => void;
+  open: boolean;
+  onRequestClose: () => void;
 }
 
-const TreeItem: React.FC<{
+const ancestorsOf = (path: string): string[] => {
+  const parts = path.split('/');
+  return parts.slice(0, -1).map((_, i) => parts.slice(0, i + 1).join('/'));
+};
+
+interface RowProps {
   item: FileTreeItem;
   level: number;
+  expanded: ReadonlySet<string>;
+  focusPath: string | null;
   activeFolderPath: string | null;
-  onFolderSelect: (path: string | null) => void;
-  onFileSelect: (id: string) => void;
-}> = ({ item, level, activeFolderPath, onFolderSelect, onFileSelect }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const isSelected = activeFolderPath === item.path;
+  selectedFile: string | null;
+  onActivate: (item: FileTreeItem) => void;
+  onFocusRow: (path: string) => void;
+}
 
-  const handleClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
+const TreeRow = ({ item, level, expanded, focusPath, activeFolderPath, selectedFile, onActivate, onFocusRow }: RowProps) => {
+  const isFolder = item.type === 'folder';
+  const isOpen = isFolder && expanded.has(item.path);
+  return (
+    <li role="none">
+      <button
+        type="button"
+        role="treeitem"
+        className="tree__row"
+        data-path={item.path}
+        data-type={item.type}
+        aria-level={level + 1}
+        aria-expanded={isFolder ? isOpen : undefined}
+        aria-selected={isFolder ? activeFolderPath === item.path : selectedFile === item.path}
+        data-active={isFolder && activeFolderPath === item.path}
+        data-selected={!isFolder && selectedFile === item.path}
+        tabIndex={focusPath === item.path ? 0 : -1}
+        style={{ paddingLeft: 8 + level * 12 }}
+        onClick={() => onActivate(item)}
+        onFocus={() => onFocusRow(item.path)}
+        title={item.path}
+      >
+        {isFolder ? (
+          <>
+            {isOpen ? <ChevronDown size={14} aria-hidden="true" /> : <ChevronRight size={14} aria-hidden="true" />}
+            <Folder size={14} aria-hidden="true" />
+          </>
+        ) : (
+          <FileText size={14} aria-hidden="true" style={{ marginLeft: 20 }} />
+        )}
+        <span className="tree__name">{item.name}</span>
+      </button>
+      {isOpen && item.children && (
+        <ul role="group">
+          {item.children.map((child) => (
+            <TreeRow
+              key={child.path}
+              item={child}
+              level={level + 1}
+              expanded={expanded}
+              focusPath={focusPath}
+              activeFolderPath={activeFolderPath}
+              selectedFile={selectedFile}
+              onActivate={onActivate}
+              onFocusRow={onFocusRow}
+            />
+          ))}
+        </ul>
+      )}
+    </li>
+  );
+};
+
+export const FileExplorer = ({
+  tree,
+  sourceLabel,
+  activeFolderPath,
+  selectedId,
+  onFolderSelect,
+  onFileSelect,
+  open,
+  onRequestClose,
+}: FileExplorerProps) => {
+  const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
+  const [focusPath, setFocusPath] = useState<string | null>(null);
+  const treeRef = useRef<HTMLUListElement>(null);
+  const selectedFile = selectedId ? fileIdOf(selectedId) : null;
+
+  // Reveal the selected file in the tree.
+  useEffect(() => {
+    if (!selectedFile) return;
+    const needed = ancestorsOf(selectedFile);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing tree expansion to external selection
+    setExpanded((prev) => (needed.every((p) => prev.has(p)) ? prev : new Set([...prev, ...needed])));
+  }, [selectedFile]);
+
+  const rovingPath = useMemo(
+    () => focusPath ?? selectedFile ?? activeFolderPath ?? tree[0]?.path ?? null,
+    [focusPath, selectedFile, activeFolderPath, tree],
+  );
+
+  const toggle = (path: string, force?: boolean) =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      const shouldOpen = force ?? !next.has(path);
+      if (shouldOpen) next.add(path);
+      else next.delete(path);
+      return next;
+    });
+
+  const activate = (item: FileTreeItem) => {
     if (item.type === 'folder') {
+      toggle(item.path);
       onFolderSelect(item.path);
-      setIsOpen(!isOpen);
     } else {
       onFileSelect(item.path);
+      onRequestClose();
+    }
+  };
+
+  const onKeyDown = (e: React.KeyboardEvent<HTMLUListElement>) => {
+    const rows = [...(treeRef.current?.querySelectorAll<HTMLButtonElement>('[role="treeitem"]') ?? [])];
+    const current = document.activeElement as HTMLButtonElement;
+    const i = rows.indexOf(current);
+    if (i < 0) return;
+    const path = current.dataset.path!;
+    const isFolder = current.dataset.type === 'folder';
+    const focusRow = (row?: HTMLButtonElement) => {
+      if (row) {
+        e.preventDefault();
+        row.focus();
+      }
+    };
+
+    switch (e.key) {
+      case 'ArrowDown':
+        return focusRow(rows[i + 1]);
+      case 'ArrowUp':
+        return focusRow(rows[i - 1]);
+      case 'Home':
+        return focusRow(rows[0]);
+      case 'End':
+        return focusRow(rows[rows.length - 1]);
+      case 'ArrowRight':
+        e.preventDefault();
+        if (isFolder && !expanded.has(path)) toggle(path, true);
+        else if (isFolder) focusRow(rows[i + 1]);
+        return;
+      case 'ArrowLeft': {
+        e.preventDefault();
+        if (isFolder && expanded.has(path)) return toggle(path, false);
+        const parent = path.split('/').slice(0, -1).join('/');
+        return focusRow(rows.find((r) => r.dataset.path === parent));
+      }
     }
   };
 
   return (
-    <div>
-      <div
-        onClick={handleClick}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          padding: '4px 8px',
-          marginLeft: `${level * 12}px`,
-          borderRadius: '4px',
-          cursor: 'pointer',
-          backgroundColor: isSelected ? 'rgba(244, 214, 118, 0.15)' : 'transparent',
-          color: isSelected ? '#f4d676' : '#e2e8f0',
-          fontSize: '0.85rem',
-          transition: 'background 0.2s',
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis'
-        }}
-        onMouseEnter={(e) => !isSelected && (e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.05)')}
-        onMouseLeave={(e) => !isSelected && (e.currentTarget.style.backgroundColor = 'transparent')}
-      >
-        {item.type === 'folder' ? (
-          <>
-            {isOpen ? <ChevronDown size={14} style={{ marginRight: '4px' }} /> : <ChevronRight size={14} style={{ marginRight: '4px' }} />}
-            <Folder size={14} style={{ marginRight: '8px', color: isSelected ? '#f4d676' : '#64748b' }} />
-          </>
-        ) : (
-          <FileText size={14} style={{ marginRight: '8px', marginLeft: '18px', color: '#64748b' }} />
+    <>
+      <div className="drawer-backdrop" data-open={open} onClick={onRequestClose} aria-hidden="true" />
+      <nav className="sidebar" data-open={open} aria-label="Files">
+        <div className="sidebar__head">
+          <h1 className="brand">
+            <img src="/logo.svg" alt="" />
+            Codite
+          </h1>
+        </div>
+        <div className="sidebar__source">
+          Showing <strong>{sourceLabel}</strong>
+        </div>
+        {activeFolderPath && (
+          <div className="scope">
+            <span title={activeFolderPath}>Only {activeFolderPath.split('/').pop()}</span>
+            <button type="button" className="icon-btn" style={{ width: 22, height: 22 }} aria-label="Show all folders" onClick={() => onFolderSelect(null)}>
+              <X size={13} />
+            </button>
+          </div>
         )}
-        {item.name}
-      </div>
-      {item.type === 'folder' && isOpen && item.children && (
-        <div>
-          {item.children.map(child => (
-            <TreeItem 
-              key={child.path} 
-              item={child} 
-              level={level + 1} 
+        <ul ref={treeRef} className="tree" role="tree" aria-label="Project files" onKeyDown={onKeyDown}>
+          {tree.map((item) => (
+            <TreeRow
+              key={item.path}
+              item={item}
+              level={0}
+              expanded={expanded}
+              focusPath={rovingPath}
               activeFolderPath={activeFolderPath}
-              onFolderSelect={onFolderSelect}
-              onFileSelect={onFileSelect}
+              selectedFile={selectedFile}
+              onActivate={activate}
+              onFocusRow={setFocusPath}
             />
           ))}
-        </div>
-      )}
-    </div>
-  );
-};
-
-export const FileExplorer: React.FC<FileExplorerProps> = ({ tree, activeFolderPath, onFolderSelect, onFileSelect }) => {
-  return (
-    <div style={{
-      width: '260px',
-      height: '100vh',
-      background: '#161618',
-      borderRight: '1px solid rgba(255, 255, 255, 0.05)',
-      display: 'flex',
-      flexDirection: 'column',
-      flexShrink: 0
-    }}>
-      <div style={{ 
-        padding: '20px 16px', 
-        borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
-        background: 'rgba(255, 255, 255, 0.01)'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-          <div style={{ display: 'flex', alignItems: 'center' }}>
-            <div style={{ 
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}>
-              <img src="/logo.svg" alt="Codite Logo" style={{ width: '32px', height: '32px' }} />
-            </div>
-            <h1 style={{ 
-              margin: 0, 
-              fontSize: '1.2rem', 
-              fontWeight: 800, 
-              color: '#f8fafc',
-              letterSpacing: '-0.03em',
-              textTransform: 'uppercase'
-            }}>Codite</h1>
-          </div>
-          
-          {activeFolderPath && (
-            <button
-              onClick={() => onFolderSelect(null)}
-              title="Clear filter"
-              style={{
-                background: 'rgba(244, 214, 118, 0.1)',
-                border: '1px solid rgba(244, 214, 118, 0.2)',
-                color: '#f4d676',
-                borderRadius: '6px',
-                padding: '4px',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                transition: 'all 0.2s'
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(244, 214, 118, 0.2)'}
-              onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(244, 214, 118, 0.1)'}
-            >
-              <X size={14} />
-            </button>
-          )}
-        </div>
-        
-        <p style={{ 
-          margin: 0, 
-          fontSize: '0.7rem', 
-          color: '#64748b', 
-          fontWeight: 500,
-          lineHeight: '1.4'
-        }}>
-          {activeFolderPath ? (
-            <span style={{ color: '#f4d676' }}>Scope: {activeFolderPath.split('/').pop()}</span>
-          ) : (
-            "Visualizing Your Codebase"
-          )}
-        </p>
-      </div>
-
-      <div style={{ flex: 1, overflowY: 'auto', padding: '12px 8px' }}>
-        {tree.map(item => (
-          <TreeItem 
-            key={item.path} 
-            item={item} 
-            level={0} 
-            activeFolderPath={activeFolderPath}
-            onFolderSelect={onFolderSelect}
-            onFileSelect={onFileSelect}
-          />
-        ))}
-      </div>
-
-      <div style={{ padding: '12px', borderTop: '1px solid rgba(255, 255, 255, 0.03)', fontSize: '0.7rem', color: '#475569' }}>
-        Click folder to filter graph view
-      </div>
-    </div>
+        </ul>
+        <div className="sidebar__foot">Select a folder to show only its files.</div>
+      </nav>
+    </>
   );
 };

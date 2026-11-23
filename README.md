@@ -50,6 +50,22 @@ The analyzer scans your source code and generates the visualization data.
 4. Start Vite and the bridge server together: `npm run dev` (Vite proxies `/api` to the bridge on port 3002)
 5. View the graph at [http://localhost:5173](http://localhost:5173), or paste a public GitHub URL into the search bar to scan it.
 
+### Using the graph
+- **Search** with `/` or `⌘K`, or pick a file in the tree. The details panel lists the node's connections (contains, imports, imported by, implements…), its source with real line numbers, and an **Open on GitHub** link for scanned repositories.
+- **Focus** (`X`) shows only the selected node's neighborhood, at a depth of 1 to 3.
+- **Find path** (`P`) highlights the shortest route between two nodes.
+- The **legend** is a filter: click a kind or language to hide it, and Alt-click to show only that one. Selecting a folder in the tree limits the graph to that folder.
+- **Export** the visible graph as PNG, SVG or JSON. Copy a shareable `?repo=owner/name` link after a scan. Recent scans are remembered.
+- Light and dark themes (`T`), a minimap, and a phone layout. Press `?` for every shortcut.
+
+### Tests
+```bash
+cd ui
+npm test            # Vitest: utilities and components
+npm run test:e2e    # Playwright: desktop + phone flows, axe accessibility checks
+```
+Run `npx playwright install chromium` once before the first end-to-end run.
+
 ### Bridge server settings
 The `/api/scan` endpoint clones public repositories, so it is restricted by default. Override with environment variables:
 
