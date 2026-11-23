@@ -36,7 +36,9 @@ impl LanguageParser for PythonParser {
             code: source_code.clone(),
         });
 
-        let Some(source_code) = source_code else { return };
+        let Some(source_code) = source_code else {
+            return;
+        };
 
         let language = tree_sitter_python::LANGUAGE.into();
         let mut parser = Parser::new();
@@ -82,37 +84,39 @@ impl LanguageParser for PythonParser {
                         // Skip methods inside classes (they'll be captured via class body)
                         if let Some(parent) = node.parent() {
                             let parent_kind = parent.kind();
-                            if parent_kind == "block" {
-                                if let Some(grandparent) = parent.parent() {
-                                    if grandparent.kind() == "class_definition" {
-                                        // This is a method — still emit as function but tag it
-                                        let name = node
-                                            .child_by_field_name("name")
-                                            .map(|n| source_code[n.start_byte()..n.end_byte()].to_string())
-                                            .unwrap_or_else(|| "<anonymous>".to_string());
+                            if parent_kind == "block"
+                                && let Some(grandparent) = parent.parent()
+                                && grandparent.kind() == "class_definition"
+                            {
+                                // This is a method — still emit as function but tag it
+                                let name = node
+                                    .child_by_field_name("name")
+                                    .map(|n| source_code[n.start_byte()..n.end_byte()].to_string())
+                                    .unwrap_or_else(|| "<anonymous>".to_string());
 
-                                        // Skip dunder methods except __init__
-                                        if name.starts_with("__") && name.ends_with("__") && name != "__init__" {
-                                            continue;
-                                        }
-
-                                        let id = format!("{}::method::{}::{}", full_path, name, start);
-                                        nodes.push(Node {
-                                            id: id.clone(),
-                                            label: format!("{}()", name),
-                                            group: "functions".to_string(),
-                                            language: "python".to_string(),
-                                            val: 8,
-                                            code: Some(full_content.to_string()),
-                                        });
-                                        links.push(Link {
-                                            source: full_path.clone(),
-                                            target: id,
-                                            link_type: "contains".to_string(),
-                                        });
-                                        continue;
-                                    }
+                                // Skip dunder methods except __init__
+                                if name.starts_with("__")
+                                    && name.ends_with("__")
+                                    && name != "__init__"
+                                {
+                                    continue;
                                 }
+
+                                let id = format!("{}::method::{}::{}", full_path, name, start);
+                                nodes.push(Node {
+                                    id: id.clone(),
+                                    label: format!("{}()", name),
+                                    group: "functions".to_string(),
+                                    language: "python".to_string(),
+                                    val: 8,
+                                    code: Some(full_content.to_string()),
+                                });
+                                links.push(Link {
+                                    source: full_path.clone(),
+                                    target: id,
+                                    link_type: "contains".to_string(),
+                                });
+                                continue;
                             }
                         }
 

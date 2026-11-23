@@ -39,7 +39,9 @@ impl LanguageParser for RustParser {
         if let Some(source_code) = source_code {
             let mut parser = Parser::new();
             let language = tree_sitter_rust::LANGUAGE.into();
-            parser.set_language(&language).expect("Error loading Rust grammar");
+            parser
+                .set_language(&language)
+                .expect("Error loading Rust grammar");
 
             let query_code = "
                 (function_item) @func
@@ -86,8 +88,10 @@ impl LanguageParser for RustParser {
                         }
                         "func" => {
                             if let Some(name_node) = node.child_by_field_name("name") {
-                                let name = &source_code[name_node.start_byte()..name_node.end_byte()];
-                                let id = format!("{}::fn::{}::{}", full_path, name, node.start_byte());
+                                let name =
+                                    &source_code[name_node.start_byte()..name_node.end_byte()];
+                                let id =
+                                    format!("{}::fn::{}::{}", full_path, name, node.start_byte());
                                 nodes.push(Node {
                                     id: id.clone(),
                                     label: format!("{}()", name),
@@ -105,7 +109,8 @@ impl LanguageParser for RustParser {
                         }
                         "struct" => {
                             if let Some(name_node) = node.child_by_field_name("name") {
-                                let name = &source_code[name_node.start_byte()..name_node.end_byte()];
+                                let name =
+                                    &source_code[name_node.start_byte()..name_node.end_byte()];
                                 let id = format!("{}::struct::{}", full_path, name);
                                 nodes.push(Node {
                                     id: id.clone(),
@@ -124,8 +129,10 @@ impl LanguageParser for RustParser {
                         }
                         "enum" => {
                             if let Some(name_node) = node.child_by_field_name("name") {
-                                let name = &source_code[name_node.start_byte()..name_node.end_byte()];
-                                let id = format!("{}::enum::{}::{}", full_path, name, node.start_byte());
+                                let name =
+                                    &source_code[name_node.start_byte()..name_node.end_byte()];
+                                let id =
+                                    format!("{}::enum::{}::{}", full_path, name, node.start_byte());
                                 nodes.push(Node {
                                     id: id.clone(),
                                     label: name.to_string(),
@@ -143,8 +150,14 @@ impl LanguageParser for RustParser {
                         }
                         "trait" => {
                             if let Some(name_node) = node.child_by_field_name("name") {
-                                let name = &source_code[name_node.start_byte()..name_node.end_byte()];
-                                let id = format!("{}::trait::{}::{}", full_path, name, node.start_byte());
+                                let name =
+                                    &source_code[name_node.start_byte()..name_node.end_byte()];
+                                let id = format!(
+                                    "{}::trait::{}::{}",
+                                    full_path,
+                                    name,
+                                    node.start_byte()
+                                );
                                 nodes.push(Node {
                                     id: id.clone(),
                                     label: name.to_string(),
@@ -168,27 +181,26 @@ impl LanguageParser for RustParser {
                                 link_type: "implements".to_string(),
                             });
                         }
-                        "use" => {
+                        "use"
                             if !full_content.contains("std::")
                                 && !full_content.contains("serde")
                                 && !full_content.contains("tree_sitter")
-                                && !full_content.contains("walkdir")
-                            {
-                                let id = format!("{}::use::{}", full_path, full_content);
-                                nodes.push(Node {
-                                    id: id.clone(),
-                                    label: full_content.replace("use ", "").replace(";", ""),
-                                    group: "imports".to_string(),
-                                    language: "rust".to_string(),
-                                    val: 5,
-                                    code: Some(full_content.to_string()),
-                                });
-                                links.push(Link {
-                                    source: full_path.clone(),
-                                    target: id,
-                                    link_type: "imports".to_string(),
-                                });
-                            }
+                                && !full_content.contains("walkdir") =>
+                        {
+                            let id = format!("{}::use::{}", full_path, full_content);
+                            nodes.push(Node {
+                                id: id.clone(),
+                                label: full_content.replace("use ", "").replace(";", ""),
+                                group: "imports".to_string(),
+                                language: "rust".to_string(),
+                                val: 5,
+                                code: Some(full_content.to_string()),
+                            });
+                            links.push(Link {
+                                source: full_path.clone(),
+                                target: id,
+                                link_type: "imports".to_string(),
+                            });
                         }
                         _ => {}
                     }

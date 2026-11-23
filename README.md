@@ -44,10 +44,42 @@ The analyzer scans your source code and generates the visualization data.
 3. Run the scanner: `cargo run`
 
 ### 2. Run the Visualization (UI)
-1. Navigate to the UI directory: `cd ui`
-2. Install dependencies: `npm install`
-3. Start the dev server: `npm run dev`
-4. View the graph at [http://localhost:5173](http://localhost:5173).
+1. Build the analyzer once so the bridge server can run remote scans: `cd analyzer && cargo build --release`
+2. Navigate to the UI directory: `cd ui`
+3. Install dependencies: `npm install`
+4. Start Vite and the bridge server together: `npm run dev` (Vite proxies `/api` to the bridge on port 3002)
+5. View the graph at [http://localhost:5173](http://localhost:5173), or paste a public GitHub URL into the search bar to scan it.
+
+### Using the graph
+- **Search** with `/` or `⌘K`, or pick a file in the tree. The details panel lists the node's connections (contains, imports, imported by, implements…), its source with real line numbers, and an **Open on GitHub** link for scanned repositories.
+- **Focus** (`X`) shows only the selected node's neighborhood, at a depth of 1 to 3.
+- **Find path** (`P`) highlights the shortest route between two nodes.
+- The **legend** is a filter: click a kind or language to hide it, and Alt-click to show only that one. Selecting a folder in the tree limits the graph to that folder.
+- **Export** the visible graph as PNG, SVG or JSON. Copy a shareable `?repo=owner/name` link after a scan. Recent scans are remembered.
+- Light and dark themes (`T`), a minimap, and a phone layout. Press `?` for every shortcut.
+
+### Tests
+```bash
+cd ui
+npm test            # Vitest: utilities and components
+npm run test:e2e    # Playwright: desktop + phone flows, axe accessibility checks
+```
+Run `npx playwright install chromium` once before the first end-to-end run.
+
+### Bridge server settings
+The `/api/scan` endpoint clones public repositories, so it is restricted by default. Override with environment variables:
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `PORT` | `3002` | HTTP port |
+| `SCAN_ALLOWED_HOSTS` | `github.com` | Comma-separated hosts that may be cloned |
+| `SCAN_MAX_REPO_MB` | `200` | Reject repositories larger than this after cloning |
+| `SCAN_CLONE_TIMEOUT_MS` | `60000` | Kill `git clone` after this long |
+| `SCAN_ANALYZE_TIMEOUT_MS` | `120000` | Kill the analyzer after this long |
+| `SCAN_MAX_CONCURRENT` | `1` | Concurrent scans; extra requests get HTTP 429 |
+| `ANALYZER_BIN` | `../analyzer/target/release/analyzer` | Path to the analyzer binary |
+
+Each scan's graph is returned in the API response, so concurrent users never overwrite each other's results.
 
 ## 🤝 Contributing
 

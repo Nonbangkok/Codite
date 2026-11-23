@@ -1,0 +1,125 @@
+{
+  "nodes": [
+    {
+      "id": "demo/src/app.ts",
+      "label": "app.ts",
+      "group": "src",
+      "language": "typescript",
+      "val": 20,
+      "code": "import { helper } from './util';\n\nexport function main() {\n  return helper(2);\n}\n"
+    },
+    {
+      "id": "demo/src/app.ts::fn::main::34",
+      "label": "main",
+      "group": "functions",
+      "language": "typescript",
+      "val": 8,
+      "code": "export function main() {\n  return helper(2);\n}"
+    },
+    {
+      "id": "demo/src/app.ts::import::0",
+      "label": "./util",
+      "group": "imports",
+      "language": "typescript",
+      "val": 4
+    },
+    {
+      "id": "demo/src/util.ts",
+      "label": "util.ts",
+      "group": "src",
+      "language": "typescript",
+      "val": 20,
+      "code": "import { add } from '../lib/math';\n\nexport function helper(x: number) {\n  return add(x, 1);\n}\n\nexport class Store {\n  items: number[] = [];\n}\n"
+    },
+    {
+      "id": "demo/src/util.ts::fn::helper::36",
+      "label": "helper",
+      "group": "functions",
+      "language": "typescript",
+      "val": 8,
+      "code": "export function helper(x: number) {\n  return add(x, 1);\n}"
+    },
+    {
+      "id": "demo/src/util.ts::class::Store",
+      "label": "Store",
+      "group": "classes",
+      "language": "typescript",
+      "val": 12,
+      "code": "export class Store {\n  items: number[] = [];\n}"
+    },
+    {
+      "id": "demo/lib/math.ts",
+      "label": "math.ts",
+      "group": "lib",
+      "language": "typescript",
+      "val": 20,
+      "code": "export function add(a: number, b: number) {\n  return a + b;\n}\n"
+    },
+    {
+      "id": "demo/lib/math.ts::fn::add::0",
+      "label": "add",
+      "group": "functions",
+      "language": "typescript",
+      "val": 8,
+      "code": "export function add(a: number, b: number) {\n  return a + b;\n}"
+    },
+    {
+      "id": "demo/native/core.rs",
+      "label": "core.rs",
+      "group": "native",
+      "language": "rust",
+      "val": 20,
+      "code": "pub struct Engine {\n    speed: u32,\n}\n"
+    },
+    {
+      "id": "demo/native/core.rs::struct::Engine",
+      "label": "Engine",
+      "group": "structs",
+      "language": "rust",
+      "val": 12,
+      "code": "pub struct Engine {\n    speed: u32,\n}"
+    }
+  ],
+  "links": [
+    {
+      "source": "demo/src/app.ts",
+      "target": "demo/src/app.ts::fn::main::34",
+      "type": "contains"
+    },
+    {
+      "source": "demo/src/app.ts",
+      "target": "demo/src/app.ts::import::0",
+      "type": "imports"
+    },
+    {
+      "source": "demo/src/app.ts",
+      "target": "demo/src/util.ts",
+      "type": "imports_module"
+    },
+    {
+      "source": "demo/src/util.ts",
+      "target": "demo/src/util.ts::fn::helper::36",
+      "type": "contains"
+    },
+    {
+      "source": "demo/src/util.ts",
+      "target": "demo/src/util.ts::class::Store",
+      "type": "contains"
+    },
+    {
+      "source": "demo/src/util.ts",
+      "target": "demo/lib/math.ts",
+      "type": "imports_module"
+    },
+    {
+      "source": "demo/lib/math.ts",
+      "target": "demo/lib/math.ts::fn::add::0",
+      "type": "contains"
+    },
+    {
+      "source": "demo/native/core.rs",
+      "target": "demo/native/core.rs::struct::Engine",
+      "type": "contains"
+    }
+  ]
+}
