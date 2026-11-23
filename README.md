@@ -44,10 +44,26 @@ The analyzer scans your source code and generates the visualization data.
 3. Run the scanner: `cargo run`
 
 ### 2. Run the Visualization (UI)
-1. Navigate to the UI directory: `cd ui`
-2. Install dependencies: `npm install`
-3. Start the dev server: `npm run dev`
-4. View the graph at [http://localhost:5173](http://localhost:5173).
+1. Build the analyzer once so the bridge server can run remote scans: `cd analyzer && cargo build --release`
+2. Navigate to the UI directory: `cd ui`
+3. Install dependencies: `npm install`
+4. Start Vite and the bridge server together: `npm run dev` (Vite proxies `/api` to the bridge on port 3002)
+5. View the graph at [http://localhost:5173](http://localhost:5173), or paste a public GitHub URL into the search bar to scan it.
+
+### Bridge server settings
+The `/api/scan` endpoint clones public repositories, so it is restricted by default. Override with environment variables:
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `PORT` | `3002` | HTTP port |
+| `SCAN_ALLOWED_HOSTS` | `github.com` | Comma-separated hosts that may be cloned |
+| `SCAN_MAX_REPO_MB` | `200` | Reject repositories larger than this after cloning |
+| `SCAN_CLONE_TIMEOUT_MS` | `60000` | Kill `git clone` after this long |
+| `SCAN_ANALYZE_TIMEOUT_MS` | `120000` | Kill the analyzer after this long |
+| `SCAN_MAX_CONCURRENT` | `1` | Concurrent scans; extra requests get HTTP 429 |
+| `ANALYZER_BIN` | `../analyzer/target/release/analyzer` | Path to the analyzer binary |
+
+Each scan's graph is returned in the API response, so concurrent users never overwrite each other's results.
 
 ## 🤝 Contributing
 

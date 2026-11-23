@@ -16,42 +16,56 @@ function App() {
   const [isResizing, setIsResizing] = useState(false);
   const [colorMode, setColorMode] = useState<'group' | 'language'>('group');
   const [showFolderNodes, setShowFolderNodes] = useState(false);
+  // 'local' = /data.json written by a local `cargo run`; 'remote' = result of a repo scan.
+  const [dataSource, setDataSource] = useState<'local' | 'remote'>('local');
   const prevDataStrRef = useRef<string>('');
+
+  const applyGraph = useCallback((data: GraphData) => {
+    const filteredNodes = data.nodes.filter((n: NodeData) => n.group !== 'imports');
+    const validNodeIds = new Set(filteredNodes.map((n: NodeData) => n.id));
+    const filteredLinks = data.links.filter((l: LinkData) => {
+      const sourceId = typeof l.source === 'string' ? l.source : l.source.id;
+      const targetId = typeof l.target === 'string' ? l.target : l.target.id;
+      return validNodeIds.has(sourceId) && validNodeIds.has(targetId);
+    });
+
+    const finalData = { nodes: filteredNodes, links: filteredLinks };
+    const dataStr = JSON.stringify(finalData);
+
+    if (dataStr !== prevDataStrRef.current) {
+      setGraphData(finalData);
+      prevDataStrRef.current = dataStr;
+    }
+  }, []);
 
   // ดึงข้อมูลจากไฟล์ที่ Backend สร้างขึ้น
   const fetchData = useCallback(async () => {
     try {
       // Add cache buster to ensure we get the latest scan results
       const response = await fetch(`/data.json?t=${Date.now()}`);
-      const data = await response.json();
-
-      const filteredNodes = data.nodes.filter((n: NodeData) => n.group !== 'imports');
-      const validNodeIds = new Set(filteredNodes.map((n: NodeData) => n.id));
-      const filteredLinks = data.links.filter((l: LinkData) => {
-        const sourceId = typeof l.source === 'string' ? l.source : l.source.id;
-        const targetId = typeof l.target === 'string' ? l.target : l.target.id;
-        return validNodeIds.has(sourceId) && validNodeIds.has(targetId);
-      });
-
-      const finalData = { nodes: filteredNodes, links: filteredLinks };
-      const dataStr = JSON.stringify(finalData);
-
-      if (dataStr !== prevDataStrRef.current) {
-        setGraphData(finalData);
-        prevDataStrRef.current = dataStr;
-      }
+      if (!response.ok) return;
+      applyGraph(await response.json());
     } catch (error) {
       console.error('Error loading graph data:', error);
     }
-  }, []);
+  }, [applyGraph]);
 
+  // Poll the local data.json only until a remote scan replaces it.
   useEffect(() => {
+    if (dataSource !== 'local') return;
     queueMicrotask(() => {
       void fetchData();
     });
     const interval = setInterval(fetchData, 5000);
     return () => clearInterval(interval);
-  }, [fetchData]);
+  }, [fetchData, dataSource]);
+
+  const handleScanSuccess = useCallback((graph: GraphData) => {
+    setDataSource('remote');
+    setSelectedNodeId(null);
+    setActiveFolderPath(null);
+    applyGraph(graph);
+  }, [applyGraph]);
 
   // ปุ่มลัดเปิด Command Palette
   useEffect(() => {
@@ -148,7 +162,7 @@ function App() {
       />
       {/* Main Graph Area */}
       <div style={{ flex: 1, position: 'relative' }}>
-        <RemoteScanner onScanSuccess={fetchData} />
+        <RemoteScanner onScanSuccess={handleScanSuccess} />
 
         <GraphView
           graphData={filteredData}

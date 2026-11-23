@@ -1,7 +1,15 @@
 import React, { useState } from 'react';
+import type { GraphData } from '../types';
 
 interface RemoteScannerProps {
-  onScanSuccess: () => void;
+  onScanSuccess: (graph: GraphData, repo: string) => void;
+}
+
+interface ScanResponse {
+  status?: string;
+  repo?: string;
+  graph?: GraphData;
+  error?: string;
 }
 
 export const RemoteScanner: React.FC<RemoteScannerProps> = ({ onScanSuccess }) => {
@@ -23,14 +31,19 @@ export const RemoteScanner: React.FC<RemoteScannerProps> = ({ onScanSuccess }) =
         body: JSON.stringify({ url }),
       });
 
-      const data = await response.json();
+      let data: ScanResponse;
+      try {
+        data = await response.json();
+      } catch {
+        throw new Error(`Scan server returned an unexpected response (HTTP ${response.status})`);
+      }
 
-      if (response.ok && data.status === 'success') {
+      if (response.ok && data.status === 'success' && data.graph) {
         setStatus('success');
-        onScanSuccess();
+        onScanSuccess(data.graph, data.repo ?? url);
         setTimeout(() => setStatus('idle'), 3000);
       } else {
-        throw new Error(data.error || 'Scan failed');
+        throw new Error(data.error || `Scan failed (HTTP ${response.status})`);
       }
     } catch (err: unknown) {
       console.error(err);
