@@ -935,7 +935,6 @@ button {
   overflow-wrap: anywhere !important;
 }
 .code-block .linenumber {
-  min-width: 3.25em !important;
   color: var(--text-faint) !important;
   opacity: 0.8;
   user-select: none;

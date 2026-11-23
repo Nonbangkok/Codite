@@ -43,6 +43,21 @@ const relationLabel = (type: string, dir: 'out' | 'in') => RELATION[type]?.[dir]
 
 const COLLAPSED_COUNT = 8;
 
+/*
+ * With line numbers + wrapLongLines the highlighter makes each line `display: flex`, which turns
+ * every token into a shrinking flex item and splits long lines into columns. Keep lines as blocks
+ * and use a hanging indent so wrapped text lines up after the 4em line-number gutter.
+ */
+const LINE_STYLE = { style: { display: 'block', paddingLeft: '4em', textIndent: '-4em' } };
+const LINE_NUMBER_STYLE = {
+  display: 'inline-block',
+  width: '3em',
+  paddingRight: '1em',
+  boxSizing: 'content-box' as const,
+  textAlign: 'right' as const,
+  textIndent: 0,
+};
+
 // oneLight's function blue (#4078f2) is 3.9:1 on its background; darken it to meet WCAG AA.
 const LIGHT_CODE_STYLE = { ...oneLight, function: { ...oneLight.function, color: '#2a5bd7' } };
 
@@ -267,6 +282,8 @@ export const NodePanel = ({
                 showLineNumbers
                 startingLineNumber={startLine ?? 1}
                 wrapLongLines
+                lineNumberStyle={LINE_NUMBER_STYLE}
+                lineProps={LINE_STYLE}
                 customStyle={{ margin: 0, padding: '14px 12px', background: 'transparent' }}
               >
                 {node.code}
