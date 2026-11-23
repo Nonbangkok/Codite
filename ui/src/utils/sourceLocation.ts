@@ -6,6 +6,8 @@ import { fileIdOf, isSymbolId } from './nodeKinds';
  * Prefers the symbol's own snippet; falls back to the byte offset some IDs end with.
  */
 export const symbolStartLine = (symbol: NodeData, fileCode: string | undefined): number | null => {
+  // Newer analyzer output says where the symbol starts.
+  if (isSymbolId(symbol.id) && symbol.start_line) return symbol.start_line;
   if (!fileCode || !isSymbolId(symbol.id)) return null;
 
   let index = -1;

@@ -1,61 +1,99 @@
 use std::env;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use std::process::ExitCode;
 
-use analyzer::models::GraphData;
+use analyzer::enrich::build_output;
+use analyzer::models::{Link, Node};
 use analyzer::parsers::{
     CParser, CppParser, GoParser, JavaScriptParser, LanguageParser, PythonParser, RustParser,
     TypeScriptParser, all_extensions, parser_for_path,
 };
 use analyzer::scanner;
 use indicatif::{ProgressBar, ProgressStyle};
+use rayon::prelude::*;
 
-fn main() {
-    let args: Vec<String> = env::args().collect();
-    let default_dir = env!("DEFAULT_SCAN_DIR");
-    let target_dir_raw = if args.len() > 1 {
-        &args[1]
-    } else {
-        default_dir
-    };
+const USAGE: &str = "Usage: analyzer [TARGET_DIR] [OUTPUT_JSON] [--inline-code]
 
-    // 1. Get the absolute, canonical path of the target directory
-    let canonical_target = fs::canonicalize(target_dir_raw)
-        .unwrap_or_else(|_| panic!("Failed to resolve target directory: {}", target_dir_raw));
+Scans TARGET_DIR (default from Cargo.toml metadata) and writes the graph to OUTPUT_JSON
+(default ../ui/public/data.json when it exists, else ./data.json).
 
-    let root_name = canonical_target
+By default source code is written to a separate file next to the graph
+(data.json -> data.code.json) so the graph loads fast; --inline-code keeps it inline.";
+
+struct Args {
+    target: String,
+    output: Option<String>,
+    split_code: bool,
+}
+
+fn parse_args() -> Result<Args, String> {
+    let mut positional = Vec::new();
+    let mut split_code = true;
+    for arg in env::args().skip(1) {
+        match arg.as_str() {
+            "--inline-code" => split_code = false,
+            "-h" | "--help" => return Err(USAGE.to_string()),
+            flag if flag.starts_with("--") => {
+                return Err(format!("Unknown option {flag}\n\n{USAGE}"));
+            }
+            _ => positional.push(arg),
+        }
+    }
+    if positional.len() > 2 {
+        return Err(USAGE.to_string());
+    }
+    let mut it = positional.into_iter();
+    Ok(Args {
+        target: it
+            .next()
+            .unwrap_or_else(|| env!("DEFAULT_SCAN_DIR").to_string()),
+        output: it.next(),
+        split_code,
+    })
+}
+
+/// `data.json` -> `data.code.json`
+fn code_path_for(output: &Path) -> PathBuf {
+    let stem = output
+        .file_stem()
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "data".into());
+    output.with_file_name(format!("{stem}.code.json"))
+}
+
+fn run() -> Result<(), String> {
+    let args = parse_args()?;
+
+    let canonical = fs::canonicalize(&args.target)
+        .map_err(|e| format!("Cannot open target directory {}: {e}", args.target))?;
+    let root_name = canonical
         .file_name()
-        .expect("Failed to get folder name from target path")
+        .ok_or("Target directory has no name")?
         .to_string_lossy()
         .into_owned();
+    let parent = canonical.parent().ok_or("Target directory has no parent")?;
 
-    let parent_dir = canonical_target
-        .parent()
-        .expect("Failed to get parent directory of target path");
-
-    // 2. Resolve output path before changing directory
-    let output_path_raw = if args.len() > 2 {
-        args[2].clone()
-    } else if std::path::Path::new("../ui/public").exists() {
-        "../ui/public/data.json".to_string()
+    let output_raw = args.output.unwrap_or_else(|| {
+        if Path::new("../ui/public").exists() {
+            "../ui/public/data.json".into()
+        } else {
+            "data.json".into()
+        }
+    });
+    let output = if Path::new(&output_raw).is_absolute() {
+        PathBuf::from(output_raw)
     } else {
-        "data.json".to_string()
+        env::current_dir()
+            .map_err(|e| e.to_string())?
+            .join(output_raw)
     };
 
-    // Convert output_path to absolute path to ensure it remains valid after CWD change
-    let output_path = if std::path::Path::new(&output_path_raw).is_absolute() {
-        PathBuf::from(output_path_raw)
-    } else {
-        env::current_dir().unwrap().join(output_path_raw)
-    };
+    println!("Target project: {root_name}");
+    println!("Output: {}", output.display());
 
-    println!("Target project: {}", root_name);
-    println!("Scanning from parent: {}", parent_dir.display());
-    println!("Output will be saved to: {}", output_path.display());
-
-    // 3. Change working directory to the parent of the target
-    // This ensures that walkdir and the parsers generate IDs starting with root_name/
-    env::set_current_dir(parent_dir).expect("Failed to change working directory");
+    // IDs are rooted at the project folder name, so scan from its parent.
+    env::set_current_dir(parent).map_err(|e| format!("Cannot enter {}: {e}", parent.display()))?;
 
     let registry: Vec<Box<dyn LanguageParser>> = vec![
         Box::new(RustParser),
@@ -67,45 +105,72 @@ fn main() {
         Box::new(CppParser),
     ];
     let extensions = all_extensions(&registry);
-
-    let mut nodes = Vec::new();
-    let mut links = Vec::new();
-
-    // Scan using the root_name (the folder name itself)
     let files = scanner::find_source_files(&root_name, &extensions);
-    let total_files = files.len();
 
-    let pb = ProgressBar::new(total_files as u64);
-    pb.set_style(ProgressStyle::default_bar()
-        .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({percent}%) {msg}")
-        .unwrap()
-        .progress_chars("#>-"));
-    pb.enable_steady_tick(std::time::Duration::from_millis(100));
+    let pb = ProgressBar::new(files.len() as u64);
+    pb.set_style(
+        ProgressStyle::default_bar()
+            .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} ({percent}%) {msg}")
+            .map_err(|e| e.to_string())?
+            .progress_chars("#>-"),
+    );
 
-    for file in files {
-        let display_path = file
-            .strip_prefix(&root_name)
-            .unwrap_or(&file)
-            .to_string_lossy();
-        pb.set_message(format!("{}", display_path));
+    // Parse files in parallel; each file produces its own nodes and links.
+    let results: Vec<(Vec<Node>, Vec<Link>)> = files
+        .par_iter()
+        .map(|file| {
+            let mut nodes = Vec::new();
+            let mut links = Vec::new();
+            if let Some(parser) = parser_for_path(file, &registry) {
+                parser.parse(file, &mut nodes, &mut links);
+            }
+            pb.inc(1);
+            (nodes, links)
+        })
+        .collect();
+    pb.finish_with_message("parsed");
 
-        if let Some(parser) = parser_for_path(&file, &registry) {
-            parser.parse(&file, &mut nodes, &mut links);
-        }
-        pb.inc(1);
+    let (mut nodes, mut links) = (Vec::new(), Vec::new());
+    for (n, l) in results {
+        nodes.extend(n);
+        links.extend(l);
     }
-    pb.finish_with_message("Scan completed successfully");
 
-    let graph = GraphData { nodes, links };
+    let (mut graph, code) = build_output(nodes, links, args.split_code);
+    let calls = graph
+        .links
+        .iter()
+        .filter(|l| l.link_type == "calls")
+        .count();
 
-    if let Ok(json) = serde_json::to_string_pretty(&graph) {
-        match fs::write(&output_path, json) {
-            Ok(_) => println!("Successfully saved graph data to {}", output_path.display()),
-            Err(e) => eprintln!(
-                "Error saving graph data to {}: {}",
-                output_path.display(),
-                e
-            ),
+    if let Some(code) = code {
+        let code_path = code_path_for(&output);
+        let json = serde_json::to_string(&code).map_err(|e| e.to_string())?;
+        fs::write(&code_path, json)
+            .map_err(|e| format!("Cannot write {}: {e}", code_path.display()))?;
+        graph.code_file = code_path
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned());
+    }
+    let json = serde_json::to_string(&graph).map_err(|e| e.to_string())?;
+    fs::write(&output, json).map_err(|e| format!("Cannot write {}: {e}", output.display()))?;
+
+    println!(
+        "Saved {} nodes, {} links ({calls} calls) from {} files to {}",
+        graph.nodes.len(),
+        graph.links.len(),
+        files.len(),
+        output.display()
+    );
+    Ok(())
+}
+
+fn main() -> ExitCode {
+    match run() {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(message) => {
+            eprintln!("{message}");
+            ExitCode::FAILURE
         }
     }
 }

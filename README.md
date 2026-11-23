@@ -38,10 +38,16 @@ To run Codite locally, follow these steps:
 - [Node.js](https://nodejs.org/) (v18 or higher) & npm
 
 ### 1. Generate Graph Data (Analyzer)
-The analyzer scans your source code and generates the visualization data.
+The analyzer scans your source code in parallel and writes the graph for the UI.
 1. Navigate to the analyzer directory: `cd analyzer`
-2. Configure the target directory in `Cargo.toml` under `[package.metadata.codite]`.
-3. Run the scanner: `cargo run`
+2. Run `cargo run --release -- [TARGET_DIR] [OUTPUT_JSON]`. Without arguments it scans the directory set in `Cargo.toml` (`[package.metadata.codite]`) and writes `../ui/public/data.json`.
+
+What it produces:
+- **Nodes** for files and symbols (functions, classes, structs, interfaces, traits, enums, types, imports), each with `kind`, `start_line` and `end_line`.
+- **Links**: `contains`, `imports`, `imports_module`, `implements`, `declares_module`, and **`calls`**. Calls are resolved by name, preferring the same file, then imported files. Ambiguous names and method calls on unknown receivers are skipped rather than guessed.
+- **Source code in a separate file** (`data.json` → `data.code.json`), so the graph loads first and the code follows. Pass `--inline-code` for a single file.
+
+Files ignored by `.gitignore`, hidden folders and build output (`node_modules`, `target`, `dist`, `dist-server`…) are skipped.
 
 ### 2. Run the Visualization (UI)
 1. Build the analyzer once so the bridge server can run remote scans: `cd analyzer && cargo build --release`
@@ -57,6 +63,30 @@ The analyzer scans your source code and generates the visualization data.
 - The **legend** is a filter: click a kind or language to hide it, and Alt-click to show only that one. Selecting a folder in the tree limits the graph to that folder.
 - **Export** the visible graph as PNG, SVG or JSON. Copy a shareable `?repo=owner/name` link after a scan. Recent scans are remembered.
 - Light and dark themes (`T`), a minimap, and a phone layout. Press `?` for every shortcut.
+
+**Reading code**
+- A CodeMirror reader with real line numbers. Wrapped lines keep their indentation (`W` toggles wrapping), and compact indentation narrows deeply nested code.
+- Indent guides, folding (including "show N levels"), and a sticky bar showing which blocks you're inside.
+- Find in code (`⌘F`) and go to line (`G`, or type `:120`). File nodes have an outline; symbols have **View in file**.
+- Click a symbol name in the code to open it. Click a line number (shift-click for a range) to get a shareable `?node=…&L=76-120` link.
+- The panel can be a side panel, half screen or full screen (`E`), with tabs for Code, Connections and Details. Metrics flag long, deeply nested or complex code.
+
+**Working across nodes**
+- Back and forward (`Alt+←/→`), editor-style tabs, and **Compare** for two readers side by side.
+- Bookmarks and notes per node, kept in the browser and exportable.
+- Commands with `>` in search, and full-text search inside all code with `#`.
+- The sidebar can be collapsed (`B`) and resized.
+
+**Graph tools** (the View menu)
+- Layouts: force, tree or radial (`L`). Folder groups can be outlined and collapsed.
+- Node size and a **Heat** color by lines, connections or complexity. Connection types can be hidden.
+- Highlight as you type. Select several nodes with Shift+click or a dragged area.
+- **Impact** (`I`) shows everything that depends on a node. Dragging a node pins it, and layouts can be saved.
+
+**Overview** (`O`)
+- Project totals, languages and rankings.
+- Health checks for import cycles, long, deeply nested or complex functions, and files nothing imports.
+- Exportable as Markdown or JSON.
 
 ### Tests
 ```bash

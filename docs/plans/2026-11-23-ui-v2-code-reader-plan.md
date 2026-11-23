@@ -1,5 +1,7 @@
 # Codite UI v2: Code Reader & Explorer Upgrade Plan
 
+> **สถานะ:** ทำครบทั้ง 5 phase แล้ว (2026-11-23) บน branch `feat/ui-v2` แยก commit ต่อ phase
+
 **เป้าหมาย:** ทำให้การอ่านโค้ดยาว ๆ ใน Codite สบายเท่ากับอ่านใน editor และเพิ่มเครื่องมือสำรวจ codebase ให้ทำได้มากกว่าการดู graph
 
 **Pain point หลัก (จากผู้ใช้):** โค้ดยาวมาก ๆ อ่านยาก

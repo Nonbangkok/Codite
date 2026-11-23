@@ -69,6 +69,7 @@ interface NodePanelProps {
   comparing: boolean;
   impactActive: boolean;
   onImpact: () => void;
+  codeLoading?: boolean;
 }
 
 const ConnectionGroup = ({
@@ -146,6 +147,15 @@ export const NodePanel = (props: NodePanelProps) => {
     setTab((t) => (node.code ? (t === 'connections' && path ? t : 'code') : 'connections'));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [node.id]);
+  // Code can arrive after the panel opened (split code files): switch to it once it does.
+  const hasCode = !!node.code;
+  const [codeSeenFor, setCodeSeenFor] = useState<string | null>(hasCode ? node.id : null);
+  useEffect(() => {
+    if (!hasCode || codeSeenFor === node.id) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reacting to late-loaded source
+    setCodeSeenFor(node.id);
+    if (!path) setTab('code');
+  }, [hasCode, codeSeenFor, node.id, path]);
   // Ctrl/Cmd+F while the panel is open goes to the code search.
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- keyboard request from the app
@@ -441,7 +451,9 @@ export const NodePanel = (props: NodePanelProps) => {
               )}
             </dl>
           </section>
-          {!node.code && <p className="panel__note">The analyzer did not capture source for this node.</p>}
+          {!node.code && (
+            <p className="panel__note">{props.codeLoading ? 'Loading source code…' : 'The analyzer did not capture source for this node.'}</p>
+          )}
           <section className="panel__section">
             <h3>
               <label htmlFor="node-note">Notes</label>

@@ -30,3 +30,21 @@ export const selectViaSearch = async (page: Page, query: string) => {
   await page.getByRole('dialog').getByRole('combobox').fill(query);
   await page.getByRole('dialog').getByRole('combobox').press('Enter');
 };
+
+/** The fixture in the analyzer's split format: no inline code, line ranges, and a code map. */
+export const splitFixture = () => {
+  const graph = JSON.parse(fixtureText);
+  const files: Record<string, string> = {};
+  for (const n of graph.nodes) if (!n.id.includes('::') && n.code) files[n.id] = n.code;
+  for (const n of graph.nodes) {
+    const file = files[n.id.split('::')[0]];
+    if (n.id.includes('::') && n.code && file) {
+      const start = file.slice(0, file.indexOf(n.code.split('\n')[0])).split('\n').length;
+      n.start_line = start;
+      n.end_line = start + n.code.split('\n').length - 1;
+    }
+    delete n.code;
+  }
+  graph.code_file = 'data.code.json';
+  return { graph, code: files };
+};

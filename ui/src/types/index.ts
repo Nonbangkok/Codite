@@ -29,4 +29,6 @@ export interface LinkData {
 export interface GraphData {
   nodes: NodeData[];
   links: LinkData[];
+  /** Name of the separate source-code file next to the graph (analyzer default). */
+  code_file?: string;
 }

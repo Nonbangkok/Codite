@@ -39,6 +39,7 @@ import { EmptyState, FilteredOutState, ScanningState } from './components/StageS
 import { ShortcutsDialog } from './components/ShortcutsDialog';
 import { OverviewDialog } from './components/OverviewDialog';
 import { computeInsights, insightsToMarkdown } from './utils/insights';
+import { hydrateCode, needsCode } from './utils/hydrate';
 import { buildFileTree, buildFolderNodes } from './utils/treeUtils';
 import { buildGraphIndex, isInFolder, linkEndId, neighborhood, shortestPath, subgraph, type PathResult } from './utils/graphIndex';
 import { countBy, fileIdOf, KIND_LABEL, nodeKind } from './utils/nodeKinds';
@@ -94,6 +95,24 @@ function App() {
   const [source, setSource] = useState<Source>({ type: 'local' });
   const [datasetKey, setDatasetKey] = useState('local');
   const lastLocalText = useRef<string | null>(null);
+  // Bumped when source code arrives after the graph (split code files), so code-based views refresh.
+  const [codeVersion, setCodeVersion] = useState(0);
+  const [codeLoading, setCodeLoading] = useState(false);
+
+  /** Loads separately stored source code into the graph's nodes, after the graph has rendered. */
+  const loadCode = useCallback(async (nodes: NodeData[], url: string) => {
+    setCodeLoading(true);
+    try {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      hydrateCode(nodes, await response.json());
+      setCodeVersion((v) => v + 1);
+    } catch (error) {
+      console.error('Could not load source code:', error);
+    } finally {
+      setCodeLoading(false);
+    }
+  }, []);
 
   // View state
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -197,7 +216,10 @@ function App() {
         const text = await response.text();
         if (cancelled || text === lastLocalText.current) return;
         lastLocalText.current = text;
-        setGraph(prepareGraph(JSON.parse(text)));
+        const raw: GraphData = JSON.parse(text);
+        const prepared = prepareGraph(raw);
+        setGraph(prepared);
+        if (raw.code_file && needsCode(prepared.nodes)) void loadCode(prepared.nodes, `/${raw.code_file}?t=${Date.now()}`);
         setDatasetKey(`local:${text.length}`);
       } catch (error) {
         console.error('Error loading graph data:', error);
@@ -211,7 +233,7 @@ function App() {
       cancelled = true;
       clearInterval(interval);
     };
-  }, [source.type]);
+  }, [source.type, loadCode]);
 
   // ── Remote scans
   const startScan = useCallback(
@@ -230,7 +252,7 @@ function App() {
           body: JSON.stringify({ url: repoToUrl(repo) }),
           signal: controller.signal,
         });
-        let body: { status?: string; repo?: string; graph?: GraphData; error?: string };
+        let body: { status?: string; repo?: string; graph?: GraphData; codeUrl?: string; error?: string };
         try {
           body = await response.json();
         } catch {
@@ -244,6 +266,7 @@ function App() {
         const prepared = prepareGraph(body.graph);
         resetView();
         setGraph(prepared);
+        if (body.codeUrl && needsCode(prepared.nodes)) void loadCode(prepared.nodes, body.codeUrl);
         setSource({ type: 'remote', repo: scanned });
         setDatasetKey(`remote:${scanned}:${Date.now()}`);
         setLoaded(true);
@@ -266,7 +289,7 @@ function App() {
         setLoaded(true);
       }
     },
-    [resetView],
+    [resetView, loadCode],
   );
 
   // Auto-scan `?repo=owner/name` once on load.
@@ -384,7 +407,8 @@ function App() {
   const fileTree = useMemo(() => buildFileTree(graph.nodes), [graph.nodes]);
 
   // ── Metrics, colors and sizes
-  const metrics = useMemo(() => computeMetrics(withFolders.nodes, fullIndex), [withFolders.nodes, fullIndex]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- codeVersion: code was filled into the same node objects
+  const metrics = useMemo(() => computeMetrics(withFolders.nodes, fullIndex), [withFolders.nodes, fullIndex, codeVersion]);
   const scaleFor = useCallback(
     (metric: SizeMetric) => rankScale(new Map([...metrics].filter(([id]) => !nodesById.get(id) || nodesById.get(id)!.group !== 'folders').map(([id, m]) => [id, m[metric]]))),
     [metrics, nodesById],
@@ -543,7 +567,8 @@ function App() {
   // Full-text search over file contents (symbols repeat their file's code, so files only).
   const searchFiles = useMemo(
     () => graph.nodes.filter((n) => !n.id.includes('::') && n.code).map((n) => ({ id: n.id, code: n.code! })),
-    [graph.nodes],
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- codeVersion: code arrives after the graph
+    [graph.nodes, codeVersion],
   );
   const searchText = useCodeSearch(searchFiles);
 
@@ -662,7 +687,8 @@ function App() {
     }
   };
 
-  const insights = useMemo(() => (showOverview ? computeInsights(graph) : null), [showOverview, graph]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- codeVersion: code arrives after the graph
+  const insights = useMemo(() => (showOverview ? computeInsights(graph) : null), [showOverview, graph, codeVersion]);
   const projectName = source.type === 'remote' ? source.repo : (fileTree[0]?.name ?? 'local project');
   const exportReport = (format: 'md' | 'json') => {
     if (!insights) return;
@@ -1224,6 +1250,7 @@ function App() {
             onNoteChange={(text) => setNote(selectedNode.id, text)}
             onCompare={() => (compareId ? setCompareId(null) : openComparePicker())}
             comparing={!!compareId}
+            codeLoading={codeLoading}
             impactActive={impact?.root === selectedNode.id}
             onImpact={() => showImpact(impact?.root === selectedNode.id ? null : selectedNode.id)}
           />
