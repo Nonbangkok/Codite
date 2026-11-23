@@ -16,6 +16,16 @@ export const withRepoParam = (href: string, repo: string | null): string => {
   return url.toString();
 };
 
+/** Returns `href` with each param set, or removed when its value is null. */
+export const withParams = (href: string, params: Record<string, string | null>): string => {
+  const url = new URL(href);
+  for (const [key, value] of Object.entries(params)) {
+    if (value) url.searchParams.set(key, value);
+    else url.searchParams.delete(key);
+  }
+  return url.toString();
+};
+
 export const repoToUrl = (repo: string): string => `https://github.com/${repo}`;
 
 interface StorageLike {

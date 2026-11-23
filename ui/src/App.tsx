@@ -4,7 +4,11 @@ import type { GraphData, LinkData, NodeData } from './types';
 import { GraphView, type ColorMode, type FitRequest, type GraphHandle } from './components/graph/GraphView';
 import { GraphToolbar, type ExportFormat } from './components/graph/GraphToolbar';
 import { Legend } from './components/graph/Legend';
-import { NodePanel } from './components/NodePanel';
+import { NodePanel, type PanelSize } from './components/NodePanel';
+import type { ReaderSettings } from './components/code/CodeReader';
+import type { LineRange } from './components/code/CodeView';
+import { formatLineRange, parseLineRange } from './utils/codeAnalysis';
+import { usePersistentState } from './hooks/usePersistentState';
 import { CommandPalette } from './components/CommandPalette';
 import { FileExplorer } from './components/FileExplorer';
 import { ScanBar, type ScanStatus } from './components/ScanBar';
@@ -12,9 +16,9 @@ import { EmptyState, FilteredOutState, ScanningState } from './components/StageS
 import { ShortcutsDialog } from './components/ShortcutsDialog';
 import { buildFileTree, buildFolderNodes } from './utils/treeUtils';
 import { buildGraphIndex, isInFolder, linkEndId, neighborhood, shortestPath, subgraph, type PathResult } from './utils/graphIndex';
-import { countBy, nodeKind } from './utils/nodeKinds';
+import { countBy, fileIdOf, KIND_LABEL, nodeKind } from './utils/nodeKinds';
 import { downloadBlob, graphToJson, graphToSvg, safeFilename } from './utils/exportGraph';
-import { loadRecentScans, readRepoParam, rememberScan, repoToUrl, withRepoParam } from './utils/share';
+import { loadRecentScans, readRepoParam, rememberScan, repoToUrl, withParams, withRepoParam } from './utils/share';
 import { PALETTES, rgba, useTheme } from './theme';
 import { useMediaQuery } from './hooks/useMediaQuery';
 
@@ -83,6 +87,24 @@ function App() {
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [panelWidth, setPanelWidth] = useState(480);
+  const [panelSize, setPanelSize] = usePersistentState<PanelSize>('codite.panelSize', 'normal', (v) =>
+    v === 'normal' || v === 'wide' || v === 'full',
+  );
+  const [readerSettings, setReaderSettings] = usePersistentState<ReaderSettings>(
+    'codite.reader',
+    { wrap: true, compact: false, fontSize: 13 },
+    (v) => typeof v === 'object' && v !== null && 'wrap' in v && 'fontSize' in v,
+  );
+  const [lineRange, setLineRange] = useState<LineRange | null>(null);
+  const [searchFocusSignal, setSearchFocusSignal] = useState(0);
+  // `?node=…&L=…` from a shared link, applied once the graph has loaded.
+  const initialNode = useRef<{ id: string; range: LineRange | null } | null>(
+    (() => {
+      const params = new URLSearchParams(window.location.search);
+      const id = params.get('node');
+      return id ? { id, range: parseLineRange(params.get('L')) } : null;
+    })(),
+  );
   const [isResizing, setIsResizing] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [announcement, setAnnouncement] = useState('');
@@ -298,8 +320,9 @@ function App() {
 
   // ── Actions
   const selectNode = useCallback(
-    (id: string | null) => {
+    (id: string | null, range: LineRange | null = null) => {
       setSelectedId(id);
+      setLineRange(range);
       if (id) {
         if (activeFolder && !isInFolder(id, activeFolder)) setActiveFolder(null);
         const node = nodesById.get(id);
@@ -310,6 +333,59 @@ function App() {
     },
     [activeFolder, nodesById],
   );
+
+  // Identifiers in code that name a symbol in the graph (clickable in the reader).
+  const symbolIndex = useMemo(() => {
+    const ids = new Map<string, string[]>();
+    for (const node of graph.nodes) {
+      const kind = nodeKind(node);
+      if (kind === 'files' || kind === 'folders' || kind === 'imports') continue;
+      const name = node.label.replace(/\(\)$/, '');
+      if (name.length < 3) continue;
+      ids.set(name, [...(ids.get(name) ?? []), node.id]);
+    }
+    const titles = new Map<string, string>();
+    for (const [name, list] of ids) {
+      const first = nodesById.get(list[0]);
+      titles.set(
+        name,
+        list.length > 1
+          ? `${name}: ${list.length} definitions — click to open the nearest`
+          : `${KIND_LABEL[nodeKind(first!)].one} ${name} in ${fileIdOf(list[0])}`,
+      );
+    }
+    return { ids, titles };
+  }, [graph.nodes, nodesById]);
+
+  const openSymbol = useCallback(
+    (name: string, fromId: string) => {
+      const candidates = symbolIndex.ids.get(name) ?? [];
+      if (candidates.length === 0) return;
+      const sameFile = candidates.find((id) => fileIdOf(id) === fileIdOf(fromId) && id !== fromId);
+      const target = sameFile ?? candidates.find((id) => id !== fromId) ?? candidates[0];
+      selectNode(target);
+    },
+    [symbolIndex, selectNode],
+  );
+
+  // Open the node from a shared link once it exists.
+  useEffect(() => {
+    const wanted = initialNode.current;
+    if (!wanted || !nodesById.has(wanted.id)) return;
+    initialNode.current = null;
+     
+    selectNode(wanted.id, wanted.range);
+  }, [nodesById, selectNode]);
+
+  // Keep `?node=` and `?L=` in the address bar so the current view can be shared.
+  useEffect(() => {
+    if (initialNode.current) return;
+    const href = withParams(window.location.href, {
+      node: selectedId,
+      L: selectedId && lineRange ? formatLineRange(lineRange) : null,
+    });
+    if (href !== window.location.href) window.history.replaceState(null, '', href);
+  }, [selectedId, lineRange]);
 
   const setHidden = legendMode === 'kind' ? setHiddenKinds : setHiddenLanguages;
   const toggleHidden = (key: string) =>
@@ -380,6 +456,11 @@ function App() {
         setIsPaletteOpen((open) => !open);
         return;
       }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'f' && selectedId && nodesById.get(selectedId)?.code && !isPaletteOpen) {
+        e.preventDefault();
+        setSearchFocusSignal((n) => n + 1);
+        return;
+      }
       if (e.defaultPrevented || isPaletteOpen || showShortcuts || e.metaKey || e.ctrlKey || e.altKey) return;
       if (isTypingTarget(e.target)) return;
 
@@ -396,7 +477,20 @@ function App() {
           if (drawerOpen) setDrawerOpen(false);
           else if (path) setPath(null);
           else if (focusDepth) setFocusDepth(0);
+          else if (panelSize === 'full' && selectedId) setPanelSize('normal');
           else if (selectedId) selectNode(null);
+          break;
+        case 'e':
+          if (selectedId) setPanelSize((s) => (s === 'normal' ? 'wide' : s === 'wide' ? 'full' : 'normal'));
+          break;
+        case 'g':
+          if (selectedId && nodesById.get(selectedId)?.code) {
+            e.preventDefault(); // otherwise the "g" lands in the search box we just focused
+            setSearchFocusSignal((n) => -(Math.abs(n) + 1));
+          }
+          break;
+        case 'w':
+          setReaderSettings((r) => ({ ...r, wrap: !r.wrap }));
           break;
         case 'f':
           graphRef.current?.fitView();
@@ -431,7 +525,7 @@ function App() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [isPaletteOpen, showShortcuts, drawerOpen, path, focusDepth, selectedId, selectNode, openPathPicker, toggleTheme, notify]);
+  }, [isPaletteOpen, showShortcuts, drawerOpen, path, focusDepth, selectedId, selectNode, openPathPicker, toggleTheme, notify, nodesById, panelSize, setPanelSize, setReaderSettings]);
 
   // ── Panel resizing
   useEffect(() => {
@@ -575,7 +669,7 @@ function App() {
         </div>
       </main>
 
-      {selectedNode && !isNarrow && (
+      {selectedNode && !isNarrow && panelSize === 'normal' && (
         <div
           className="resizer"
           role="separator"
@@ -598,7 +692,11 @@ function App() {
         className="panel-slot"
         data-open={!!selectedNode}
         data-resizing={isResizing}
-        style={{ width: selectedNode ? panelWidth : 0, opacity: selectedNode ? 1 : 0 }}
+        data-size={panelSize}
+        style={{
+          width: !selectedNode ? 0 : panelSize === 'wide' ? 'max(50vw, 360px)' : panelSize === 'full' ? undefined : panelWidth,
+          opacity: selectedNode ? 1 : 0,
+        }}
       >
         {selectedNode && (
           <NodePanel
@@ -606,16 +704,24 @@ function App() {
             nodesById={nodesById}
             index={fullIndex}
             repo={source.type === 'remote' ? source.repo : null}
-            theme={theme}
             colorOf={nodeColor}
             focusDepth={focusDepth}
             onFocusDepthChange={setFocusDepth}
             path={path}
             onFindPath={openPathPicker}
             onClearPath={() => setPath(null)}
-            onSelect={(id) => selectNode(id)}
+            onSelect={(id, range) => selectNode(id, range ?? null)}
             onClose={() => selectNode(null)}
             onNotify={notify}
+            size={panelSize}
+            onSizeChange={setPanelSize}
+            lineRange={lineRange}
+            onLineRangeChange={setLineRange}
+            readerSettings={readerSettings}
+            onReaderSettingsChange={setReaderSettings}
+            symbolNames={symbolIndex.titles}
+            onSymbolClick={openSymbol}
+            searchFocusSignal={searchFocusSignal}
           />
         )}
       </div>

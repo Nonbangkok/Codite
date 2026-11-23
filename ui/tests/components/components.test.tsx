@@ -70,12 +70,24 @@ describe('NodePanel', () => {
     onClearPath: vi.fn(),
     onClose: vi.fn(),
     onNotify: vi.fn(),
+    size: 'normal' as const,
+    onSizeChange: vi.fn(),
+    lineRange: null,
+    onLineRangeChange: vi.fn(),
+    readerSettings: { wrap: true, compact: false, fontSize: 13 },
+    onReaderSettingsChange: vi.fn(),
+    symbolNames: new Map<string, string>(),
+    onSymbolClick: vi.fn(),
+    searchFocusSignal: 0,
   };
 
   test('groups connections by relation and navigates on click', () => {
     const onSelect = vi.fn();
     render(<NodePanel {...baseProps} node={nodesById.get('demo/src/util.ts')!} onSelect={onSelect} />);
     expect(screen.getByRole('heading', { name: 'util.ts' })).toBeTruthy();
+    // Files open on their code; connections live in their own tab.
+    expect(screen.getByRole('tab', { name: 'Code' }).getAttribute('aria-selected')).toBe('true');
+    fireEvent.click(screen.getByRole('tab', { name: /Connections/ }));
     expect(screen.getByRole('heading', { name: /Contains/ })).toBeTruthy();
     expect(screen.getByRole('heading', { name: /Imports/ })).toBeTruthy();
     expect(screen.getByRole('heading', { name: /Imported by/ })).toBeTruthy();
@@ -87,7 +99,7 @@ describe('NodePanel', () => {
     render(<NodePanel {...baseProps} node={nodesById.get(MAIN)!} onSelect={vi.fn()} />);
     expect(screen.getByText('Line 3')).toBeTruthy();
     expect(screen.getByRole('link', { name: /Open on GitHub/ }).getAttribute('href')).toBe(
-      'https://github.com/owner/demo/blob/HEAD/src/app.ts#L3',
+      'https://github.com/owner/demo/blob/HEAD/src/app.ts#L3-L5',
     );
   });
 
@@ -105,6 +117,44 @@ describe('NodePanel', () => {
   test('omits the GitHub link for local data', () => {
     render(<NodePanel {...baseProps} repo={null} node={nodesById.get(MAIN)!} onSelect={vi.fn()} />);
     expect(screen.queryByRole('link', { name: /Open on GitHub/ })).toBeNull();
+  });
+});
+
+describe('NodePanel tabs', () => {
+  test('arrow keys move between tabs and Details lists facts', () => {
+    render(
+      <NodePanel
+        nodesById={nodesById}
+        index={index}
+        repo={null}
+        colorOf={() => '#999'}
+        focusDepth={0}
+        onFocusDepthChange={vi.fn()}
+        path={null}
+        onFindPath={vi.fn()}
+        onClearPath={vi.fn()}
+        onClose={vi.fn()}
+        onNotify={vi.fn()}
+        size="normal"
+        onSizeChange={vi.fn()}
+        lineRange={null}
+        onLineRangeChange={vi.fn()}
+        readerSettings={{ wrap: true, compact: false, fontSize: 13 }}
+        onReaderSettingsChange={vi.fn()}
+        symbolNames={new Map()}
+        onSymbolClick={vi.fn()}
+        searchFocusSignal={0}
+        node={nodesById.get(MAIN)!}
+        onSelect={vi.fn()}
+      />,
+    );
+    const code = screen.getByRole('tab', { name: 'Code' });
+    fireEvent.keyDown(code, { key: 'ArrowRight' });
+    fireEvent.keyDown(screen.getByRole('tab', { name: /Connections/ }), { key: 'ArrowRight' });
+    expect(screen.getByRole('tab', { name: 'Details' }).getAttribute('aria-selected')).toBe('true');
+    const details = screen.getByRole('tabpanel');
+    expect(details.textContent).toContain('Lines3–5 (3 lines)');
+    expect(details.textContent).toContain('Nesting depth1');
   });
 });
 

@@ -3,8 +3,12 @@ import { useEffect, useRef } from 'react';
 const SHORTCUTS:{ keys: string[]; action: string }[] = [
   { keys: ['/'], action: 'Search files and symbols' },
   { keys: ['⌘', 'K'], action: 'Search (also Ctrl+K)' },
-  { keys: ['Esc'], action: 'Clear path, then close the details panel' },
+  { keys: ['Esc'], action: 'Clear path, leave full screen, then close the details panel' },
   { keys: ['F'], action: 'Fit the graph to the screen' },
+  { keys: ['E'], action: 'Details panel: side, half screen, full screen' },
+  { keys: ['W'], action: 'Wrap long lines in code' },
+  { keys: ['G'], action: 'Go to a line in the open code' },
+  { keys: ['⌘', 'F'], action: 'Find in the open code (also Ctrl+F)' },
   { keys: ['X'], action: 'Focus on the selected node’s neighborhood' },
   { keys: ['P'], action: 'Find a path from the selected node' },
   { keys: ['N'], action: 'Show or hide all names' },
