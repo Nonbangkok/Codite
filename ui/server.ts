@@ -5,6 +5,8 @@ import os from 'os';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { parseAllowedHosts, parseRepoUrl, RepoUrlError } from './server/repoUrl.js';
+import { ScanCache } from './server/scanCache.js';
+import { randomUUID } from 'crypto';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -23,6 +25,8 @@ const ANALYZE_TIMEOUT_MS = envNumber('SCAN_ANALYZE_TIMEOUT_MS', 120_000);
 const MAX_REPO_BYTES = envNumber('SCAN_MAX_REPO_MB', 200) * 1024 * 1024;
 const MAX_CONCURRENT_SCANS = envNumber('SCAN_MAX_CONCURRENT', 1);
 const ANALYZER_BIN = process.env.ANALYZER_BIN || path.join(uiRoot, '../analyzer/target/release/analyzer');
+// Source code of recent scans, served separately so the graph response stays small.
+const codeCache = new ScanCache<string>(envNumber('SCAN_CODE_CACHE', 8), envNumber('SCAN_CODE_TTL_MS', 30 * 60_000));
 
 const app = express();
 app.disable('x-powered-by');
@@ -138,8 +142,15 @@ app.post('/api/scan', async (req: Request, res: Response) => {
     }
 
     const graph = JSON.parse(await fs.promises.readFile(outputPath, 'utf8'));
+    let codeUrl: string | undefined;
+    if (typeof graph.code_file === 'string') {
+      const scanId = randomUUID();
+      codeCache.set(scanId, await fs.promises.readFile(path.join(baseDir, path.basename(graph.code_file)), 'utf8'));
+      codeUrl = `/api/scans/${scanId}/code`;
+      delete graph.code_file;
+    }
     console.log(`[scan] done ${label} in ${Date.now() - started}ms (${graph.nodes?.length ?? 0} nodes)`);
-    res.json({ status: 'success', repo: label, graph });
+    res.json({ status: 'success', repo: label, graph, codeUrl });
   } catch (err) {
     if (err instanceof ScanError) {
       console.warn(`[scan] ${label}: ${err.message}`);
@@ -156,6 +167,12 @@ app.post('/api/scan', async (req: Request, res: Response) => {
       });
     }
   }
+});
+
+app.get('/api/scans/:id/code', (req: Request<{ id: string }>, res: Response) => {
+  const code = /^[0-9a-f-]{36}$/.test(req.params.id) ? codeCache.get(req.params.id) : undefined;
+  if (!code) return res.status(404).json({ error: 'This scan has expired. Scan the repository again to read its code.' });
+  res.type('application/json').send(code);
 });
 
 if (fs.existsSync(staticRoot)) {

@@ -22,9 +22,11 @@ test.describe('local graph', () => {
     await selectViaSearch(page, 'helper');
     const panel = page.getByRole('complementary', { name: 'helper' });
     await expect(panel).toBeVisible();
-    await expect(panel.getByText('Line 3')).toBeVisible();
+    await expect(panel.getByText('Line 3', { exact: true })).toBeVisible();
+    await expect(panel.locator('.cm-content')).toContainText('return add(x, 1);');
+    await panel.getByRole('tab', { name: /Connections/ }).click();
     await expect(panel.getByRole('heading', { name: /Defined in/ })).toBeVisible();
-    await panel.getByRole('button', { name: /util\.ts/ }).click();
+    await panel.getByRole('button', { name: 'util.ts File' }).click();
     await expect(page.getByRole('complementary', { name: 'util.ts' })).toBeVisible();
     await expect(page.getByRole('treeitem', { name: 'util.ts' })).toHaveAttribute('aria-selected', 'true');
   });
@@ -124,7 +126,7 @@ test.describe('remote scans', () => {
     await selectViaSearch(page, 'main');
     await expect(page.getByRole('link', { name: /Open on GitHub/ })).toHaveAttribute(
       'href',
-      'https://github.com/owner/demo/blob/HEAD/src/app.ts#L3',
+      'https://github.com/owner/demo/blob/HEAD/src/app.ts#L3-L5',
     );
   });
 

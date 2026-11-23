@@ -25,7 +25,8 @@ use std::path::Path;
 
 use crate::models::{Link, Node};
 
-pub trait LanguageParser {
+/// Parsers run on many files in parallel, so they must be shareable across threads.
+pub trait LanguageParser: Send + Sync {
     fn language_name(&self) -> &'static str;
     fn extensions(&self) -> &'static [&'static str];
     fn parse(&self, path: &Path, nodes: &mut Vec<Node>, links: &mut Vec<Link>);
