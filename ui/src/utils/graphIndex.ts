@@ -123,3 +123,50 @@ export const subgraph = (graph: GraphData, keep: (id: string) => boolean): Graph
 /** True when `id` is the folder itself or lives inside it (avoids `src` matching `src2/...`). */
 export const isInFolder = (id: string, folder: string): boolean =>
   id === folder || id.startsWith(`${folder}/`) || id.startsWith(`${folder}::`);
+
+/**
+ * Curvature for links that share both endpoints (a file that contains and calls a function,
+ * two functions calling each other…): without it they draw exactly on top of each other.
+ * Single links stay straight. Values are relative to each link's own direction.
+ */
+export const parallelLinkCurvature = (links: readonly LinkData[], spacing = 0.3): Map<LinkData, number> => {
+  const groups = new Map<string, LinkData[]>();
+  for (const l of links) {
+    const s = linkEndId(l.source);
+    const t = linkEndId(l.target);
+    const key = s < t ? `${s}\u0000${t}` : `${t}\u0000${s}`;
+    const list = groups.get(key);
+    if (list) list.push(l);
+    else groups.set(key, [l]);
+  }
+  const out = new Map<LinkData, number>();
+  for (const list of groups.values()) {
+    if (list.length < 2) continue;
+    list.forEach((l, i) => {
+      const offset = (i - (list.length - 1) / 2) * spacing;
+      // Offsets are in the pair's canonical direction; a reversed link bends the other way.
+      const canonical = linkEndId(l.source) < linkEndId(l.target);
+      out.set(l, canonical ? offset : -offset);
+    });
+  }
+  return out;
+};
+
+/**
+ * The graph library replaces link ids with node objects and never re-resolves an endpoint that is
+ * already an object. When a node is swapped for another object with the same id (a folder that
+ * was just collapsed, a folder node rebuilt), links would keep pointing at the old object and be
+ * drawn to a frozen, invisible spot. Returns the graph with such links rebound to ids (the same
+ * graph object when nothing is stale).
+ */
+export const rebindLinks = (graph: GraphData): GraphData => {
+  const byId = new Map(graph.nodes.map((n) => [n.id, n]));
+  const isStale = (end: LinkData['source']) => typeof end === 'object' && byId.get(end.id) !== end;
+  if (!graph.links.some((l) => isStale(l.source) || isStale(l.target))) return graph;
+  return {
+    nodes: graph.nodes,
+    links: graph.links.map((l) =>
+      isStale(l.source) || isStale(l.target) ? { source: linkEndId(l.source), target: linkEndId(l.target), type: l.type } : l,
+    ),
+  };
+};

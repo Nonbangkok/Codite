@@ -67,3 +67,42 @@ describe('subgraph and isInFolder', () => {
     expect(isInFolder('demo/src', 'demo/src')).toBe(true);
   });
 });
+
+describe('parallelLinkCurvature', () => {
+  test('bends links that share endpoints apart and leaves single links straight', async () => {
+    const { parallelLinkCurvature } = await import('../src/utils/graphIndex');
+    const contains = { source: 'f', target: 'g', type: 'contains' };
+    const calls = { source: 'f', target: 'g', type: 'calls' };
+    const back = { source: 'g', target: 'f', type: 'calls' };
+    const single = { source: 'a', target: 'b', type: 'imports' };
+    const c = parallelLinkCurvature([contains, calls, back, single]);
+    expect(c.has(single)).toBe(false);
+    const values = [c.get(contains)!, c.get(calls)!, -c.get(back)!]; // back is reversed
+    expect(new Set(values.map((v) => v.toFixed(3))).size).toBe(3); // three distinct paths
+    expect(values.reduce((a, b) => a + b, 0)).toBeCloseTo(0); // spread around the straight line
+  });
+  test('two links in opposite directions get opposite curvature in the shared frame', async () => {
+    const { parallelLinkCurvature } = await import('../src/utils/graphIndex');
+    const ab = { source: 'a', target: 'b', type: 'calls' };
+    const ba = { source: 'b', target: 'a', type: 'calls' };
+    const c = parallelLinkCurvature([ab, ba]);
+    expect(c.get(ab)).toBeCloseTo(-0.15);
+    expect(c.get(ba)).toBeCloseTo(-0.15); // same value, but relative to its own (reversed) direction
+  });
+});
+
+describe('rebindLinks', () => {
+  test('rebinds links whose endpoint object was replaced by a new node with the same id', async () => {
+    const { rebindLinks } = await import('../src/utils/graphIndex');
+    const parent = { id: 'r', label: 'r', group: 'folders', language: '', val: 4 };
+    const oldFolder = { id: 'r/src', label: 'src', group: 'folders', language: '', val: 4 };
+    const collapsed = { id: 'r/src', label: 'src (5)', group: 'folders', language: '', val: 12, collapsedCount: 5 };
+    const kept = { source: parent, target: collapsed, type: 'contains' };
+    const stale = { source: parent, target: oldFolder, type: 'contains' };
+    const g = rebindLinks({ nodes: [parent, collapsed], links: [kept, stale] });
+    expect(g.links[0]).toBe(kept);
+    expect(g.links[1]).toEqual({ source: 'r', target: 'r/src', type: 'contains' });
+    const clean = { nodes: [parent, collapsed], links: [kept] };
+    expect(rebindLinks(clean)).toBe(clean);
+  });
+});

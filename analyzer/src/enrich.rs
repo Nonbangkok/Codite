@@ -305,11 +305,42 @@ pub fn call_links(
 
 /// Builds the output graph. With `split_code`, source is removed from nodes and returned as a
 /// map of file id → code (symbols are recovered from their file by line range).
+/// Parsers can emit the same id twice (a C forward declaration and its definition, two local Go
+/// types with one name). Duplicate ids break graph layouts — links attach to one copy and the
+/// other drifts loose — so keep one node per id (the one with the most code) and one copy of
+/// each identical link.
+pub fn dedupe(nodes: Vec<Node>, links: Vec<Link>) -> (Vec<Node>, Vec<Link>) {
+    let mut best: HashMap<String, usize> = HashMap::new();
+    for (i, n) in nodes.iter().enumerate() {
+        let len = n.code.as_ref().map_or(0, String::len);
+        match best.get(&n.id) {
+            Some(&j) if nodes[j].code.as_ref().map_or(0, String::len) >= len => {}
+            _ => {
+                best.insert(n.id.clone(), i);
+            }
+        }
+    }
+    let keep: HashSet<usize> = best.into_values().collect();
+    let nodes = nodes
+        .into_iter()
+        .enumerate()
+        .filter(|(i, _)| keep.contains(i))
+        .map(|(_, n)| n)
+        .collect();
+    let mut seen = HashSet::new();
+    let links = links
+        .into_iter()
+        .filter(|l| seen.insert((l.source.clone(), l.target.clone(), l.link_type.clone())))
+        .collect();
+    (nodes, links)
+}
+
 pub fn build_output(
     nodes: Vec<Node>,
-    mut links: Vec<Link>,
+    links: Vec<Link>,
     split_code: bool,
 ) -> (OutputGraph, Option<HashMap<String, String>>) {
+    let (nodes, mut links) = dedupe(nodes, links);
     let ranges = line_ranges(&nodes);
     links.extend(call_links(&nodes, &links, &ranges));
     let mut code_map = split_code.then(HashMap::new);
