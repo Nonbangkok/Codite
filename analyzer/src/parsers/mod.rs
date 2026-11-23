@@ -44,5 +44,8 @@ pub fn parser_for_path<'a>(
 }
 
 pub fn all_extensions(parsers: &[Box<dyn LanguageParser>]) -> Vec<&'static str> {
-    parsers.iter().flat_map(|p| p.extensions().iter().copied()).collect()
+    parsers
+        .iter()
+        .flat_map(|p| p.extensions().iter().copied())
+        .collect()
 }

@@ -6,8 +6,10 @@ fn main() {
     println!("cargo:rerun-if-changed=Cargo.toml");
 
     let cargo_toml = fs::read_to_string("Cargo.toml").expect("Failed to read Cargo.toml");
-    let value = cargo_toml.parse::<Value>().expect("Failed to parse Cargo.toml");
-    
+    let value = cargo_toml
+        .parse::<Value>()
+        .expect("Failed to parse Cargo.toml");
+
     let default_dir = value
         .get("package")
         .and_then(|v| v.get("metadata"))

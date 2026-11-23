@@ -20,10 +20,10 @@ fn find_declarator_identifier(node: tree_sitter::Node, source_code: &str) -> Opt
         return find_declarator_identifier(child, source_code);
     }
     for i in 0..node.child_count() {
-        if let Some(child) = node.child(i as u32) {
-            if let Some(name) = find_declarator_identifier(child, source_code) {
-                return Some(name);
-            }
+        if let Some(child) = node.child(i as u32)
+            && let Some(name) = find_declarator_identifier(child, source_code)
+        {
+            return Some(name);
         }
     }
     None
@@ -61,7 +61,9 @@ impl LanguageParser for CppParser {
         if let Some(source_code) = source_code {
             let mut parser = Parser::new();
             let language = tree_sitter_cpp::LANGUAGE.into();
-            parser.set_language(&language).expect("Error loading C++ grammar");
+            parser
+                .set_language(&language)
+                .expect("Error loading C++ grammar");
 
             let query_code = "
                 (function_definition) @func
@@ -84,23 +86,24 @@ impl LanguageParser for CppParser {
 
                 match capture_name {
                     "func" => {
-                        if let Some(declarator_node) = node.child_by_field_name("declarator") {
-                            if let Some(name) = find_declarator_identifier(declarator_node, &source_code) {
-                                let id = format!("{}::fn::{}::{}", full_path, name, node.start_byte());
-                                nodes.push(Node {
-                                    id: id.clone(),
-                                    label: format!("{}()", name),
-                                    group: "functions".to_string(),
-                                    language: "cpp".to_string(),
-                                    val: 8,
-                                    code: Some(full_content.to_string()),
-                                });
-                                links.push(Link {
-                                    source: full_path.clone(),
-                                    target: id,
-                                    link_type: "contains".to_string(),
-                                });
-                            }
+                        if let Some(declarator_node) = node.child_by_field_name("declarator")
+                            && let Some(name) =
+                                find_declarator_identifier(declarator_node, &source_code)
+                        {
+                            let id = format!("{}::fn::{}::{}", full_path, name, node.start_byte());
+                            nodes.push(Node {
+                                id: id.clone(),
+                                label: format!("{}()", name),
+                                group: "functions".to_string(),
+                                language: "cpp".to_string(),
+                                val: 8,
+                                code: Some(full_content.to_string()),
+                            });
+                            links.push(Link {
+                                source: full_path.clone(),
+                                target: id,
+                                link_type: "contains".to_string(),
+                            });
                         }
                     }
                     "class" => {
@@ -162,10 +165,12 @@ impl LanguageParser for CppParser {
                     }
                     "include" => {
                         if let Some(path_node) = node.child_by_field_name("path") {
-                            let specifier = &source_code[path_node.start_byte()..path_node.end_byte()];
+                            let specifier =
+                                &source_code[path_node.start_byte()..path_node.end_byte()];
                             if specifier.starts_with('"') && specifier.ends_with('"') {
                                 let clean_spec = specifier.trim_matches('"');
-                                let id = format!("{}::import::{}", full_path, path_node.start_byte());
+                                let id =
+                                    format!("{}::import::{}", full_path, path_node.start_byte());
                                 nodes.push(Node {
                                     id: id.clone(),
                                     label: clean_spec.to_string(),
@@ -180,20 +185,23 @@ impl LanguageParser for CppParser {
                                     link_type: "imports".to_string(),
                                 });
 
-                                let rel_spec = if !clean_spec.starts_with("./") && !clean_spec.starts_with("../") {
+                                let rel_spec = if !clean_spec.starts_with("./")
+                                    && !clean_spec.starts_with("../")
+                                {
                                     format!("./{}", clean_spec)
                                 } else {
                                     clean_spec.to_string()
                                 };
 
-                                if let Some(resolved) = import_resolver::resolve_relative(path, &rel_spec) {
-                                    if let Ok(canonical) = std::fs::canonicalize(resolved) {
-                                        links.push(Link {
-                                            source: full_path.clone(),
-                                            target: canonical.to_string_lossy().into_owned(),
-                                            link_type: "imports_module".to_string(),
-                                        });
-                                    }
+                                if let Some(resolved) =
+                                    import_resolver::resolve_relative(path, &rel_spec)
+                                    && let Ok(canonical) = std::fs::canonicalize(resolved)
+                                {
+                                    links.push(Link {
+                                        source: full_path.clone(),
+                                        target: canonical.to_string_lossy().into_owned(),
+                                        link_type: "imports_module".to_string(),
+                                    });
                                 }
                             }
                         }

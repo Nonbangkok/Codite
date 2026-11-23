@@ -1,7 +1,9 @@
 use std::path::PathBuf;
 
 use analyzer::models::{Link, Node};
-use analyzer::parsers::{LanguageParser, TypeScriptParser, JavaScriptParser, PythonParser, GoParser, CParser, CppParser};
+use analyzer::parsers::{
+    CParser, CppParser, GoParser, JavaScriptParser, LanguageParser, PythonParser, TypeScriptParser,
+};
 
 fn fixture(rel: &str) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -23,7 +25,11 @@ fn typescript_parser_extracts_all_constructs() {
 
     // file node + 1 function + 1 class + 1 interface + 1 type alias + 1 enum + 2 imports + 1 method
     assert!(nodes.iter().all(|n| n.language == "typescript"));
-    assert_eq!(count_group(&nodes, "functions"), 4, "expected greet() + User.greet() + arrowGreet() + fnExpr()");
+    assert_eq!(
+        count_group(&nodes, "functions"),
+        4,
+        "expected greet() + User.greet() + arrowGreet() + fnExpr()"
+    );
     assert_eq!(count_group(&nodes, "classes"), 1);
     assert_eq!(count_group(&nodes, "interfaces"), 1);
     assert_eq!(count_group(&nodes, "types"), 1);
@@ -39,7 +45,9 @@ fn typescript_parser_resolves_relative_import_to_file_link() {
 
     parser.parse(&fixture("typescript/sample.ts"), &mut nodes, &mut links);
 
-    let imported_path = fixture("typescript/imported.ts").to_string_lossy().into_owned();
+    let imported_path = fixture("typescript/imported.ts")
+        .to_string_lossy()
+        .into_owned();
     let module_links: Vec<&Link> = links
         .iter()
         .filter(|l| l.link_type == "imports_module")
@@ -60,12 +68,19 @@ fn typescript_resolves_dot_js_specifier_to_ts_file() {
     let mut links: Vec<Link> = Vec::new();
     parser.parse(&fixture("typescript/nodenext.ts"), &mut nodes, &mut links);
 
-    let imported_path = fixture("typescript/imported.ts").to_string_lossy().into_owned();
+    let imported_path = fixture("typescript/imported.ts")
+        .to_string_lossy()
+        .into_owned();
     assert!(
-        links.iter().any(|l| l.link_type == "imports_module" && l.target == imported_path),
+        links
+            .iter()
+            .any(|l| l.link_type == "imports_module" && l.target == imported_path),
         "expected imports_module link to {} from .js specifier, got {:?}",
         imported_path,
-        links.iter().filter(|l| l.link_type == "imports_module").collect::<Vec<_>>()
+        links
+            .iter()
+            .filter(|l| l.link_type == "imports_module")
+            .collect::<Vec<_>>()
     );
 }
 
@@ -78,7 +93,11 @@ fn javascript_parser_extracts_constructs_and_tags_language() {
     parser.parse(&fixture("javascript/sample.js"), &mut nodes, &mut links);
 
     assert!(nodes.iter().all(|n| n.language == "javascript"));
-    assert_eq!(count_group(&nodes, "functions"), 3, "add() + increment() + subtract() (constructor excluded)");
+    assert_eq!(
+        count_group(&nodes, "functions"),
+        3,
+        "add() + increment() + subtract() (constructor excluded)"
+    );
     assert_eq!(count_group(&nodes, "classes"), 1);
     assert_eq!(count_group(&nodes, "imports"), 1);
 }
@@ -92,7 +111,11 @@ fn python_parser_extracts_constructs_and_tags_language() {
     parser.parse(&fixture("python/sample.py"), &mut nodes, &mut links);
 
     assert!(nodes.iter().all(|n| n.language == "python"));
-    assert_eq!(count_group(&nodes, "functions"), 4, "expected __init__ + my_method + my_function + decorated_function");
+    assert_eq!(
+        count_group(&nodes, "functions"),
+        4,
+        "expected __init__ + my_method + my_function + decorated_function"
+    );
     assert_eq!(count_group(&nodes, "classes"), 1);
     assert_eq!(count_group(&nodes, "imports"), 2);
 }
@@ -112,7 +135,9 @@ fn go_parser_extracts_all_constructs_and_resolves_relative_imports() {
 
     let imported_path = fixture("go/imported.go").to_string_lossy().into_owned();
     assert!(
-        links.iter().any(|l| l.link_type == "imports_module" && l.target == imported_path),
+        links
+            .iter()
+            .any(|l| l.link_type == "imports_module" && l.target == imported_path),
         "expected imports_module link to {}, got {:?}",
         imported_path,
         links
@@ -133,7 +158,9 @@ fn c_parser_extracts_all_constructs_and_resolves_includes() {
 
     let imported_path = fixture("c/helper.h").to_string_lossy().into_owned();
     assert!(
-        links.iter().any(|l| l.link_type == "imports_module" && l.target == imported_path),
+        links
+            .iter()
+            .any(|l| l.link_type == "imports_module" && l.target == imported_path),
         "expected imports_module link to {}, got {:?}",
         imported_path,
         links
@@ -153,7 +180,9 @@ fn cpp_parser_extracts_all_constructs_and_resolves_includes() {
 
     let imported_path = fixture("cpp/math_utils.hpp").to_string_lossy().into_owned();
     assert!(
-        links.iter().any(|l| l.link_type == "imports_module" && l.target == imported_path),
+        links
+            .iter()
+            .any(|l| l.link_type == "imports_module" && l.target == imported_path),
         "expected imports_module link to {}, got {:?}",
         imported_path,
         links

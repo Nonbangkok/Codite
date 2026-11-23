@@ -3,25 +3,34 @@ use std::fs;
 use std::path::PathBuf;
 
 use analyzer::models::GraphData;
-use analyzer::parsers::{LanguageParser, RustParser, TypeScriptParser, JavaScriptParser, PythonParser, GoParser, CParser, CppParser, all_extensions, parser_for_path};
+use analyzer::parsers::{
+    CParser, CppParser, GoParser, JavaScriptParser, LanguageParser, PythonParser, RustParser,
+    TypeScriptParser, all_extensions, parser_for_path,
+};
 use analyzer::scanner;
 use indicatif::{ProgressBar, ProgressStyle};
 
 fn main() {
     let args: Vec<String> = env::args().collect();
     let default_dir = env!("DEFAULT_SCAN_DIR");
-    let target_dir_raw = if args.len() > 1 { &args[1] } else { default_dir };
+    let target_dir_raw = if args.len() > 1 {
+        &args[1]
+    } else {
+        default_dir
+    };
 
     // 1. Get the absolute, canonical path of the target directory
     let canonical_target = fs::canonicalize(target_dir_raw)
-        .expect(&format!("Failed to resolve target directory: {}", target_dir_raw));
-    
-    let root_name = canonical_target.file_name()
+        .unwrap_or_else(|_| panic!("Failed to resolve target directory: {}", target_dir_raw));
+
+    let root_name = canonical_target
+        .file_name()
         .expect("Failed to get folder name from target path")
         .to_string_lossy()
         .into_owned();
-    
-    let parent_dir = canonical_target.parent()
+
+    let parent_dir = canonical_target
+        .parent()
         .expect("Failed to get parent directory of target path");
 
     // 2. Resolve output path before changing directory
@@ -32,7 +41,7 @@ fn main() {
     } else {
         "data.json".to_string()
     };
-    
+
     // Convert output_path to absolute path to ensure it remains valid after CWD change
     let output_path = if std::path::Path::new(&output_path_raw).is_absolute() {
         PathBuf::from(output_path_raw)
@@ -74,9 +83,12 @@ fn main() {
     pb.enable_steady_tick(std::time::Duration::from_millis(100));
 
     for file in files {
-        let display_path = file.strip_prefix(&root_name).unwrap_or(&file).to_string_lossy();
+        let display_path = file
+            .strip_prefix(&root_name)
+            .unwrap_or(&file)
+            .to_string_lossy();
         pb.set_message(format!("{}", display_path));
-        
+
         if let Some(parser) = parser_for_path(&file, &registry) {
             parser.parse(&file, &mut nodes, &mut links);
         }
@@ -89,7 +101,11 @@ fn main() {
     if let Ok(json) = serde_json::to_string_pretty(&graph) {
         match fs::write(&output_path, json) {
             Ok(_) => println!("Successfully saved graph data to {}", output_path.display()),
-            Err(e) => eprintln!("Error saving graph data to {}: {}", output_path.display(), e),
+            Err(e) => eprintln!(
+                "Error saving graph data to {}: {}",
+                output_path.display(),
+                e
+            ),
         }
     }
 }

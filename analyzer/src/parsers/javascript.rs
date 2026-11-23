@@ -36,7 +36,9 @@ impl LanguageParser for JavaScriptParser {
             code: source_code.clone(),
         });
 
-        let Some(source_code) = source_code else { return };
+        let Some(source_code) = source_code else {
+            return;
+        };
 
         let language = tree_sitter_javascript::LANGUAGE.into();
         let mut parser = Parser::new();
@@ -104,8 +106,11 @@ impl LanguageParser for JavaScriptParser {
                         });
                     }
                     "arrow" => {
-                        let Some(name_node) = node.child_by_field_name("name") else { continue };
-                        let name = source_code[name_node.start_byte()..name_node.end_byte()].to_string();
+                        let Some(name_node) = node.child_by_field_name("name") else {
+                            continue;
+                        };
+                        let name =
+                            source_code[name_node.start_byte()..name_node.end_byte()].to_string();
                         let id = format!("{}::fn::{}::{}", full_path, name, start);
                         nodes.push(Node {
                             id: id.clone(),
@@ -157,14 +162,14 @@ impl LanguageParser for JavaScriptParser {
                             link_type: "imports".to_string(),
                         });
 
-                        if let Some(spec) = import_resolver::extract_specifier(full_content) {
-                            if let Some(resolved) = import_resolver::resolve_relative(path, &spec) {
-                                links.push(Link {
-                                    source: full_path.clone(),
-                                    target: resolved.to_string_lossy().into_owned(),
-                                    link_type: "imports_module".to_string(),
-                                });
-                            }
+                        if let Some(spec) = import_resolver::extract_specifier(full_content)
+                            && let Some(resolved) = import_resolver::resolve_relative(path, &spec)
+                        {
+                            links.push(Link {
+                                source: full_path.clone(),
+                                target: resolved.to_string_lossy().into_owned(),
+                                link_type: "imports_module".to_string(),
+                            });
                         }
                     }
                     _ => {}
