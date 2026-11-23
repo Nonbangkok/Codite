@@ -46,9 +46,16 @@ jobs:
           cache-dependency-path: ui/package-lock.json
       - run: npm ci
       - run: npm run lint
-      - run: node --import tsx --test tests/*.test.ts
+      - run: npm test
       - run: npm run build
       - run: npm audit --omit=dev --audit-level=high
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-results
+          path: ui/test-results
 
   docker:
     name: Docker image
