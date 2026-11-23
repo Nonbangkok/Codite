@@ -9,7 +9,12 @@ import type { ReaderSettings } from './components/code/CodeReader';
 import type { LineRange } from './components/code/CodeView';
 import { formatLineRange, parseLineRange } from './utils/codeAnalysis';
 import { usePersistentState } from './hooks/usePersistentState';
-import { CommandPalette } from './components/CommandPalette';
+import { CommandPalette, type PaletteCommand, type PaletteMode } from './components/CommandPalette';
+import { DocTabs } from './components/DocTabs';
+import { ComparePane } from './components/ComparePane';
+import { EMPTY_HISTORY, canGoBack, canGoForward, closeTab, moveHistory, openTab, pruneTabs, pushHistory, recentIds, togglePin, type DocTab, type History } from './utils/workspace';
+import { parseNotesImport, useNotes } from './hooks/useNotes';
+import { useCodeSearch } from './hooks/useCodeSearch';
 import { FileExplorer } from './components/FileExplorer';
 import { ScanBar, type ScanStatus } from './components/ScanBar';
 import { EmptyState, FilteredOutState, ScanningState } from './components/StageStates';
@@ -82,8 +87,15 @@ function App() {
   const [path, setPath] = useState<PathResult | null>(null);
 
   // Chrome
-  const [palettePathFrom, setPalettePathFrom] = useState<NodeData | null>(null);
-  const [isPaletteOpen, setIsPaletteOpen] = useState(false);
+  const [paletteState, setPalette] = useState<{ mode: PaletteMode; from: NodeData | null; query: string } | null>(null);
+  const isPaletteOpen = paletteState !== null;
+  const openPalette = useCallback((query = '') => setPalette({ mode: 'search', from: null, query }), []);
+  const [history, setHistory] = useState<History>(EMPTY_HISTORY);
+  const [tabs, setTabs] = useState<DocTab[]>([]);
+  const [compareId, setCompareId] = useState<string | null>(null);
+  const [sidebarWidth, setSidebarWidth] = usePersistentState<number>('codite.sidebarWidth', 260, (v) => typeof v === 'number' && v >= 200 && v <= 480);
+  const [sidebarCollapsed, setSidebarCollapsed] = usePersistentState<boolean>('codite.sidebarCollapsed', false, (v) => typeof v === 'boolean');
+  const importRef = useRef<HTMLInputElement>(null);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [panelWidth, setPanelWidth] = useState(480);
@@ -320,10 +332,12 @@ function App() {
 
   // ── Actions
   const selectNode = useCallback(
-    (id: string | null, range: LineRange | null = null) => {
+    (id: string | null, range: LineRange | null = null, record = true) => {
       setSelectedId(id);
       setLineRange(range);
       if (id) {
+        if (record) setHistory((h) => pushHistory(h, { id, range }));
+        setTabs((t) => openTab(t, selectedId, id));
         if (activeFolder && !isInFolder(id, activeFolder)) setActiveFolder(null);
         const node = nodesById.get(id);
         if (node) setAnnouncement(`Selected ${node.label}`);
@@ -331,8 +345,53 @@ function App() {
         setFocusDepth(0);
       }
     },
-    [activeFolder, nodesById],
+    [activeFolder, nodesById, selectedId],
   );
+
+  const goHistory = useCallback(
+    (delta: -1 | 1) => {
+      const next = moveHistory(history, delta);
+      if (next === history) return;
+      setHistory(next);
+      const entry = next.stack[next.index];
+      if (nodesById.has(entry.id)) selectNode(entry.id, entry.range, false);
+    },
+    [history, nodesById, selectNode],
+  );
+
+  const closeDocTab = (id: string) => {
+    const { tabs: next, nextActive } = closeTab(tabs, selectedId, id);
+    setTabs(next);
+    if (id === compareId) setCompareId(null);
+    if (nextActive !== selectedId) selectNode(nextActive);
+  };
+
+  // A new dataset invalidates tabs, history and comparisons that point at missing nodes.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reconcile with new data
+    setTabs((t) => pruneTabs(t, (id) => nodesById.has(id)));
+    setHistory((h) => (h.stack.every((e) => nodesById.has(e.id)) ? h : EMPTY_HISTORY));
+    setCompareId((c) => (c && !nodesById.has(c) ? null : c));
+  }, [nodesById]);
+
+  // Bookmarks and notes are kept per project.
+  const notesScope = source.type === 'remote' ? `repo:${source.repo}` : `local:${graph.nodes[0]?.id.split('/')[0] ?? 'project'}`;
+  const { notes, toggleBookmark, setNote, importNotes } = useNotes(notesScope);
+  const bookmarkList = useMemo(
+    () =>
+      Object.entries(notes)
+        .filter(([id]) => nodesById.has(id))
+        .sort((a, b) => b[1].updatedAt - a[1].updatedAt)
+        .map(([id, n]) => ({ id, label: nodesById.get(id)!.label, color: '', hasNote: !!n.note.trim(), bookmarked: n.bookmarked })),
+    [notes, nodesById],
+  );
+
+  // Full-text search over file contents (symbols repeat their file's code, so files only).
+  const searchFiles = useMemo(
+    () => graph.nodes.filter((n) => !n.id.includes('::') && n.code).map((n) => ({ id: n.id, code: n.code! })),
+    [graph.nodes],
+  );
+  const searchText = useCodeSearch(searchFiles);
 
   // Identifiers in code that name a symbol in the graph (clickable in the reader).
   const symbolIndex = useMemo(() => {
@@ -402,20 +461,31 @@ function App() {
       notify('Select a node first, then find a path from it.');
       return;
     }
-    setPalettePathFrom(selectedNode);
-    setIsPaletteOpen(true);
+    setPalette({ mode: 'path', from: selectedNode, query: '' });
   }, [selectedNode, notify]);
 
-  const choosePathTarget = (target: NodeData) => {
-    if (!palettePathFrom) return;
-    const result = shortestPath(fullIndex, palettePathFrom.id, target.id);
+  const openComparePicker = useCallback(() => {
+    if (!selectedNode) {
+      notify('Select a node first, then compare it with another.');
+      return;
+    }
+    setPalette({ mode: 'compare', from: selectedNode, query: '' });
+  }, [selectedNode, notify]);
+
+  const choosePathTarget = (from: NodeData, target: NodeData) => {
+    const result = shortestPath(fullIndex, from.id, target.id);
     if (!result) {
-      notify(`${palettePathFrom.label} and ${target.label} are not connected.`);
+      notify(`${from.label} and ${target.label} are not connected.`);
       return;
     }
     setPath(result);
-    setSelectedId(palettePathFrom.id);
-    setAnnouncement(`Path found with ${result.nodeIds.length - 1} steps from ${palettePathFrom.label} to ${target.label}.`);
+    setSelectedId(from.id);
+    setAnnouncement(`Path found with ${result.nodeIds.length - 1} steps from ${from.label} to ${target.label}.`);
+  };
+
+  const chooseCompare = (target: NodeData) => {
+    setCompareId(target.id);
+    setPanelSize((s) => (s === 'normal' ? 'wide' : s));
   };
 
   const exportName = safeFilename(source.type === 'remote' ? source.repo : (fileTree[0]?.name ?? 'codite'));
@@ -452,8 +522,12 @@ function App() {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'p')) {
         e.preventDefault();
-        setPalettePathFrom(null);
-        setIsPaletteOpen((open) => !open);
+        setPalette((p) => (p ? null : { mode: 'search', from: null, query: e.shiftKey ? '>' : '' }));
+        return;
+      }
+      if (e.altKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight') && !isPaletteOpen && !isTypingTarget(e.target)) {
+        e.preventDefault();
+        goHistory(e.key === 'ArrowLeft' ? -1 : 1);
         return;
       }
       if ((e.metaKey || e.ctrlKey) && e.key === 'f' && selectedId && nodesById.get(selectedId)?.code && !isPaletteOpen) {
@@ -467,8 +541,15 @@ function App() {
       switch (e.key) {
         case '/':
           e.preventDefault();
-          setPalettePathFrom(null);
-          setIsPaletteOpen(true);
+          openPalette();
+          break;
+        case '>':
+        case '#':
+          e.preventDefault();
+          openPalette(e.key);
+          break;
+        case 'b':
+          setSidebarCollapsed((c) => !c);
           break;
         case '?':
           setShowShortcuts(true);
@@ -525,7 +606,58 @@ function App() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [isPaletteOpen, showShortcuts, drawerOpen, path, focusDepth, selectedId, selectNode, openPathPicker, toggleTheme, notify, nodesById, panelSize, setPanelSize, setReaderSettings]);
+  }, [isPaletteOpen, showShortcuts, drawerOpen, path, focusDepth, selectedId, selectNode, openPathPicker, toggleTheme, notify, nodesById, panelSize, setPanelSize, setReaderSettings, goHistory, openPalette, setSidebarCollapsed]);
+
+  // ── Sidebar resizing
+  const startSidebarResize = (e: React.PointerEvent) => {
+    e.preventDefault();
+    const handle = e.currentTarget as HTMLElement;
+    handle.setPointerCapture(e.pointerId);
+    const onMove = (ev: PointerEvent) => setSidebarWidth(Math.round(Math.min(480, Math.max(200, ev.clientX))));
+    const onUp = () => {
+      handle.removeEventListener('pointermove', onMove);
+      handle.removeEventListener('pointerup', onUp);
+    };
+    handle.addEventListener('pointermove', onMove);
+    handle.addEventListener('pointerup', onUp);
+  };
+
+  // ── Commands for the palette (type ">")
+  const exportNotes = () => {
+    const blob = new Blob([JSON.stringify({ scope: notesScope, notes }, null, 2)], { type: 'application/json' });
+    downloadBlob(blob, `${safeFilename(notesScope)}-notes.json`);
+  };
+  const onImportNotes = async (file: File | undefined) => {
+    if (!file) return;
+    const parsed = parseNotesImport(await file.text());
+    if (!parsed) return notify('That file is not a Codite notes export.');
+    importNotes(parsed);
+    notify(`Imported ${Object.keys(parsed).length} bookmarks and notes.`);
+  };
+  const commands: PaletteCommand[] = [
+    { id: 'theme', label: theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme', shortcut: 'T', run: toggleTheme },
+    { id: 'fit', label: 'Fit graph to screen', shortcut: 'F', run: () => graphRef.current?.fitView() },
+    { id: 'names', label: showNames ? 'Hide node names' : 'Show all node names', shortcut: 'N', run: () => setShowNames((v) => !v) },
+    { id: 'folders', label: showFolders ? 'Hide folder nodes' : 'Show folder nodes', shortcut: 'D', run: () => setShowFolders((v) => !v) },
+    { id: 'color', label: colorMode === 'kind' ? 'Color nodes by language' : 'Color nodes by kind', shortcut: 'C', run: () => setColorMode((m) => (m === 'kind' ? 'language' : 'kind')) },
+    { id: 'sidebar', label: sidebarCollapsed ? 'Show sidebar' : 'Hide sidebar', shortcut: 'B', run: () => setSidebarCollapsed((c) => !c) },
+    { id: 'wrap', label: readerSettings.wrap ? 'Stop wrapping long lines' : 'Wrap long lines', keywords: 'code reader', shortcut: 'W', run: () => setReaderSettings((r) => ({ ...r, wrap: !r.wrap })) },
+    { id: 'compact', label: readerSettings.compact ? 'Use full indentation' : 'Use compact indentation', keywords: 'code reader indent', run: () => setReaderSettings((r) => ({ ...r, compact: !r.compact })) },
+    { id: 'panel-side', label: 'Details panel: side', keywords: 'size', run: () => setPanelSize('normal') },
+    { id: 'panel-half', label: 'Details panel: half screen', keywords: 'size wide', run: () => setPanelSize('wide') },
+    { id: 'panel-full', label: 'Details panel: full screen', keywords: 'size reader', run: () => setPanelSize('full') },
+    { id: 'path', label: 'Find path from the selected node', shortcut: 'P', run: openPathPicker },
+    { id: 'compare', label: 'Compare the selected node with…', keywords: 'split side by side', run: openComparePicker },
+    { id: 'reset', label: 'Reset filters and selection', keywords: 'clear show all', run: resetView },
+    { id: 'close-tabs', label: 'Close all tabs', run: () => (setTabs([]), setCompareId(null), selectNode(null)) },
+    { id: 'png', label: 'Export graph as PNG', keywords: 'image download', run: () => void handleExport('png') },
+    { id: 'svg', label: 'Export graph as SVG', keywords: 'vector download', run: () => void handleExport('svg') },
+    { id: 'json', label: 'Export graph data as JSON', keywords: 'download', run: () => void handleExport('json') },
+    { id: 'notes-export', label: 'Export bookmarks and notes', keywords: 'backup download', run: exportNotes },
+    { id: 'notes-import', label: 'Import bookmarks and notes', keywords: 'restore upload', run: () => importRef.current?.click() },
+    { id: 'shortcuts', label: 'Show keyboard shortcuts', shortcut: '?', run: () => setShowShortcuts(true) },
+    ...(source.type === 'remote' ? [{ id: 'link', label: 'Copy link to this view', run: () => void copyLink() }] : []),
+  ];
 
   // ── Panel resizing
   useEffect(() => {
@@ -553,7 +685,21 @@ function App() {
   const scanning = scan.status === 'scanning';
 
   return (
-    <div className="app">
+    <div
+      className="app"
+      data-sidebar={sidebarCollapsed ? 'collapsed' : 'open'}
+      style={{ ['--sidebar-w' as string]: `${sidebarWidth}px` }}
+    >
+      <input
+        ref={importRef}
+        type="file"
+        accept="application/json,.json"
+        hidden
+        onChange={(e) => {
+          void onImportNotes(e.target.files?.[0]);
+          e.target.value = '';
+        }}
+      />
       <FileExplorer
         tree={fileTree}
         sourceLabel={sourceLabel}
@@ -566,6 +712,9 @@ function App() {
         onFileSelect={(id) => selectNode(id)}
         open={drawerOpen}
         onRequestClose={() => setDrawerOpen(false)}
+        bookmarks={bookmarkList.map((b) => ({ ...b, color: nodeColor(nodesById.get(b.id)!) }))}
+        onOpenBookmark={(id) => selectNode(id)}
+        onResizeStart={isNarrow ? undefined : startSidebarResize}
       />
 
       <main className="stage" aria-label="Graph">
@@ -573,8 +722,8 @@ function App() {
           type="button"
           className="icon-btn drawer-toggle"
           aria-label="Show files"
-          aria-expanded={drawerOpen}
-          onClick={() => setDrawerOpen(true)}
+          aria-expanded={isNarrow ? drawerOpen : !sidebarCollapsed}
+          onClick={() => (isNarrow ? setDrawerOpen(true) : setSidebarCollapsed(false))}
         >
           <Menu size={18} />
         </button>
@@ -699,6 +848,22 @@ function App() {
         }}
       >
         {selectedNode && (
+          <DocTabs
+            tabs={tabs}
+            activeId={selectedId}
+            nodesById={nodesById}
+            colorOf={nodeColor}
+            canBack={canGoBack(history)}
+            canForward={canGoForward(history)}
+            onBack={() => goHistory(-1)}
+            onForward={() => goHistory(1)}
+            onActivate={(id) => selectNode(id)}
+            onClose={closeDocTab}
+            onTogglePin={(id) => setTabs((t) => togglePin(t, id))}
+          />
+        )}
+        {selectedNode && (
+          <div className="panel-split" data-compare={!!compareId}>
           <NodePanel
             node={selectedNode}
             nodesById={nodesById}
@@ -722,19 +887,58 @@ function App() {
             symbolNames={symbolIndex.titles}
             onSymbolClick={openSymbol}
             searchFocusSignal={searchFocusSignal}
+            bookmarked={!!notes[selectedNode.id]?.bookmarked}
+            onToggleBookmark={() => toggleBookmark(selectedNode.id)}
+            note={notes[selectedNode.id]?.note ?? ''}
+            onNoteChange={(text) => setNote(selectedNode.id, text)}
+            onCompare={() => (compareId ? setCompareId(null) : openComparePicker())}
+            comparing={!!compareId}
           />
+          {compareId && nodesById.get(compareId) && (
+            <ComparePane
+              node={nodesById.get(compareId)!}
+              nodesById={nodesById}
+              colorOf={nodeColor}
+              readerSettings={readerSettings}
+              onReaderSettingsChange={setReaderSettings}
+              symbolNames={symbolIndex.titles}
+              onSymbolClick={(name) => {
+                const target = symbolIndex.ids.get(name)?.[0];
+                if (target) setCompareId(target);
+              }}
+              onSwap={() => {
+                const main = selectedId;
+                selectNode(compareId);
+                setCompareId(main);
+              }}
+              onClose={() => setCompareId(null)}
+              onNotify={notify}
+            />
+          )}
+          </div>
         )}
       </div>
 
-      {isPaletteOpen && (
+      {paletteState && (
         <CommandPalette
           nodes={withFolders.nodes}
-          pathFrom={palettePathFrom}
-          onClose={() => {
-            setIsPaletteOpen(false);
-            setPalettePathFrom(null);
+          mode={paletteState.mode}
+          from={paletteState.from}
+          initialQuery={paletteState.query}
+          recent={recentIds(history)
+            .filter((id) => id !== selectedId)
+            .map((id) => nodesById.get(id))
+            .filter((n): n is NodeData => !!n)}
+          commands={commands}
+          searchText={searchText}
+          nodesById={nodesById}
+          onClose={() => setPalette(null)}
+          onOpenText={(hit) => selectNode(hit.nodeId, { from: hit.line, to: hit.line })}
+          onSelect={(node) => {
+            if (paletteState.mode === 'path' && paletteState.from) choosePathTarget(paletteState.from, node);
+            else if (paletteState.mode === 'compare') chooseCompare(node);
+            else selectNode(node.id);
           }}
-          onSelect={(node) => (palettePathFrom ? choosePathTarget(node) : selectNode(node.id))}
         />
       )}
       {showShortcuts && <ShortcutsDialog onClose={() => setShowShortcuts(false)} />}

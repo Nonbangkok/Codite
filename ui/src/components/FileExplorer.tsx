@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronDown, ChevronRight, FileText, Folder, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, FileText, Folder, Star, StickyNote, X } from 'lucide-react';
 import type { FileTreeItem } from '../utils/treeUtils';
 import { fileIdOf } from '../utils/nodeKinds';
 
@@ -12,6 +12,10 @@ interface FileExplorerProps {
   onFileSelect: (id: string) => void;
   open: boolean;
   onRequestClose: () => void;
+  bookmarks?: { id: string; label: string; color: string; hasNote: boolean; bookmarked: boolean }[];
+  onOpenBookmark?: (id: string) => void;
+  width?: number;
+  onResizeStart?: (e: React.PointerEvent) => void;
 }
 
 const ancestorsOf = (path: string): string[] => {
@@ -92,6 +96,9 @@ export const FileExplorer = ({
   onFileSelect,
   open,
   onRequestClose,
+  bookmarks = [],
+  onOpenBookmark,
+  onResizeStart,
 }: FileExplorerProps) => {
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
   const [focusPath, setFocusPath] = useState<string | null>(null);
@@ -188,6 +195,23 @@ export const FileExplorer = ({
             </button>
           </div>
         )}
+        {bookmarks.length > 0 && (
+          <details className="bookmarks" open>
+            <summary>Bookmarks and notes ({bookmarks.length})</summary>
+            <ul>
+              {bookmarks.map((b) => (
+                <li key={b.id}>
+                  <button type="button" className="tree__row" onClick={() => { onOpenBookmark?.(b.id); onRequestClose(); }} title={b.id}>
+                    {b.bookmarked ? <Star size={13} aria-label="Bookmarked" /> : <StickyNote size={13} aria-label="Has a note" />}
+                    <span className="dot" style={{ background: b.color }} aria-hidden="true" />
+                    <span className="tree__name">{b.label}</span>
+                    {b.bookmarked && b.hasNote && <StickyNote size={12} aria-label="Has a note" />}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
         <ul ref={treeRef} className="tree" role="tree" aria-label="Project files" onKeyDown={onKeyDown}>
           {tree.map((item) => (
             <TreeRow
@@ -204,6 +228,15 @@ export const FileExplorer = ({
           ))}
         </ul>
         <div className="sidebar__foot">Select a folder to show only its files.</div>
+        {onResizeStart && (
+          <div
+            className="sidebar__resizer"
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Resize sidebar"
+            onPointerDown={onResizeStart}
+          />
+        )}
       </nav>
     </>
   );

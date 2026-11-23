@@ -3,6 +3,10 @@ import { useEffect, useRef } from 'react';
 const SHORTCUTS:{ keys: string[]; action: string }[] = [
   { keys: ['/'], action: 'Search files and symbols' },
   { keys: ['⌘', 'K'], action: 'Search (also Ctrl+K)' },
+  { keys: ['>'], action: 'Run a command' },
+  { keys: ['#'], action: 'Search inside all code' },
+  { keys: ['Alt', '←'], action: 'Back to the previous node (Alt+→ forward)' },
+  { keys: ['B'], action: 'Show or hide the sidebar' },
   { keys: ['Esc'], action: 'Clear path, leave full screen, then close the details panel' },
   { keys: ['F'], action: 'Fit the graph to the screen' },
   { keys: ['E'], action: 'Details panel: side, half screen, full screen' },

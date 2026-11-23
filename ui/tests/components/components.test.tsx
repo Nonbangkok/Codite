@@ -50,7 +50,7 @@ describe('CommandPalette', () => {
 
   test('path mode names the start and excludes it from results', () => {
     const from = nodesById.get(MAIN)!;
-    render(<CommandPalette nodes={nodes} onSelect={vi.fn()} onClose={vi.fn()} pathFrom={from} />);
+    render(<CommandPalette nodes={nodes} onSelect={vi.fn()} onClose={vi.fn()} mode="path" from={from} />);
     expect(screen.getByRole('dialog', { name: 'Find a path from main' })).toBeTruthy();
     expect(screen.queryAllByRole('option').some((o) => o.textContent?.includes(MAIN.split('::')[0]) && o.textContent.startsWith('main'))).toBe(false);
   });

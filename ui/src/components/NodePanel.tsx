@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
-import { Copy, Crosshair, ExternalLink, Maximize2, PanelRight, Columns2, Route, X } from 'lucide-react';
+import { Columns2, Copy, Crosshair, ExternalLink, Maximize2, PanelRight, Route, SplitSquareHorizontal, Star, X } from 'lucide-react';
 import type { NodeData } from '../types';
 import type { GraphIndex, PathResult } from '../utils/graphIndex';
 import { KIND_LABEL, languageLabel, nodeKind, isSymbolId } from '../utils/nodeKinds';
@@ -61,6 +61,12 @@ interface NodePanelProps {
   symbolNames: ReadonlyMap<string, string>;
   onSymbolClick: (name: string, fromId: string) => void;
   searchFocusSignal: number;
+  bookmarked: boolean;
+  onToggleBookmark: () => void;
+  note: string;
+  onNoteChange: (note: string) => void;
+  onCompare: () => void;
+  comparing: boolean;
 }
 
 const ConnectionGroup = ({
@@ -218,6 +224,16 @@ export const NodePanel = (props: NodePanelProps) => {
             {startLine && <span>Line {startLine}</span>}
           </div>
           <div className="panel__controls">
+            <button
+              type="button"
+              className="icon-btn"
+              aria-pressed={props.bookmarked}
+              aria-label={props.bookmarked ? 'Remove bookmark' : 'Bookmark this node'}
+              title={props.bookmarked ? 'Remove bookmark' : 'Bookmark (shows in the sidebar)'}
+              onClick={props.onToggleBookmark}
+            >
+              <Star size={15} fill={props.bookmarked ? 'currentColor' : 'none'} />
+            </button>
             <div className="segmented segmented--icons" role="group" aria-label="Panel size">
               {SIZES.map(({ size, label, Icon }) => (
                 <button key={size} type="button" aria-pressed={props.size === size} aria-label={label} title={`${label} (E cycles)`} onClick={() => props.onSizeChange(size)}>
@@ -271,6 +287,10 @@ export const NodePanel = (props: NodePanelProps) => {
           <button type="button" className="btn" onClick={props.onFindPath} title="Find how this connects to another node (P)">
             <Route size={14} aria-hidden="true" />
             Find path
+          </button>
+          <button type="button" className="btn" aria-pressed={props.comparing} onClick={props.onCompare} title="Open another node side by side">
+            <SplitSquareHorizontal size={14} aria-hidden="true" />
+            Compare
           </button>
           {props.repo && (
             <a className="btn" href={githubUrl(props.repo, node, ghLine, ghEnd)} target="_blank" rel="noreferrer">
@@ -416,6 +436,22 @@ export const NodePanel = (props: NodePanelProps) => {
             </dl>
           </section>
           {!node.code && <p className="panel__note">The analyzer did not capture source for this node.</p>}
+          <section className="panel__section">
+            <h3>
+              <label htmlFor="node-note">Notes</label>
+              <small>Saved in this browser</small>
+            </h3>
+            <textarea
+              id="node-note"
+              className="note-input"
+              rows={6}
+              placeholder="What does this do? What to check next?"
+              defaultValue={props.note}
+              key={node.id}
+              onBlur={(e) => props.onNoteChange(e.target.value)}
+              onKeyDown={(e) => e.stopPropagation()}
+            />
+          </section>
         </div>
       )}
     </aside>
