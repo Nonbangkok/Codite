@@ -26,9 +26,16 @@ test('tree layout places nodes on dependency levels', async ({ page }) => {
     const key = Object.keys(localStorage).find((k) => k.startsWith('codite.layout.'))!;
     return JSON.parse(localStorage.getItem(key)!).positions as Record<string, [number, number]>;
   });
-  const levels = new Set(Object.values(positions).map(([, y]) => Math.round(y / 10)));
   expect(Object.keys(positions)).toHaveLength(9);
-  expect(levels.size).toBeLessThanOrEqual(4); // a few levels, not 9 scattered rows
+  // Files sit on a few dependency levels, not 9 scattered rows ...
+  const files = Object.keys(positions).filter((id) => !id.includes('::'));
+  expect(new Set(files.map((id) => Math.round(positions[id][1] / 10))).size).toBeLessThanOrEqual(3);
+  // ... and each symbol sits in a block just below its file.
+  for (const id of Object.keys(positions).filter((x) => x.includes('::'))) {
+    const dy = positions[id][1] - positions[id.split('::')[0]][1];
+    expect(dy).toBeGreaterThan(0);
+    expect(dy).toBeLessThan(100);
+  }
   // L cycles to the radial layout.
   await page.keyboard.press('Escape');
   await page.locator('body').press('l');

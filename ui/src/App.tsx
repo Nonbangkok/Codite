@@ -41,6 +41,7 @@ import { OverviewDialog } from './components/OverviewDialog';
 import { computeInsights, insightsToMarkdown } from './utils/insights';
 import { hydrateCode, needsCode } from './utils/hydrate';
 import { prepareGraph } from './utils/prepareGraph';
+import { structureLinks } from './utils/structureLayout';
 import { buildFileTree, buildFolderNodes } from './utils/treeUtils';
 import { buildGraphIndex, isInFolder, neighborhood, rebindLinks, shortestPath, subgraph, type PathResult } from './utils/graphIndex';
 import { countBy, fileIdOf, KIND_LABEL, nodeKind } from './utils/nodeKinds';
@@ -117,7 +118,8 @@ function App() {
   const [hiddenLanguages, setHiddenLanguages] = useState<ReadonlySet<string>>(new Set());
   const [focusDepth, setFocusDepth] = useState(0);
   const [path, setPath] = useState<PathResult | null>(null);
-  const [layout, setLayout] = usePersistentState<LayoutMode>('codite.layoutMode', 'force', (v) => v === 'force' || v === 'tree' || v === 'radial');
+  const [layout, setLayout] = usePersistentState<LayoutMode>('codite.layoutMode', 'force', (v) => ['force', 'tree', 'radial', 'structure'].includes(v as string));
+  const [untangleOn, setUntangleOn] = usePersistentState<boolean>('codite.untangle', true, (v) => typeof v === 'boolean');
   const [groupByFolder, setGroupByFolder] = usePersistentState<boolean>('codite.groupByFolder', false, (v) => typeof v === 'boolean');
   const [collapsedFolders, setCollapsedFolders] = useState<ReadonlySet<string>>(new Set());
   const [sizeBy, setSizeBy] = usePersistentState<SizeBy>('codite.sizeBy', 'uniform', (v) => ['uniform', 'lines', 'connections', 'complexity'].includes(v as string));
@@ -304,12 +306,14 @@ function App() {
   const cancelScan = useCallback(() => abortRef.current?.abort(), []);
 
   // ── Derived graph pipeline: folders → filters (+path) → focus
+  // The structure view always shows folders: they are the branches of its tree.
+  const foldersShown = showFolders || layout === 'structure';
   const withFolders = useMemo(() => {
-    if (!showFolders) return graph;
+    if (!foldersShown) return graph;
     const fileNodes = graph.nodes.filter((n) => !n.id.includes('::'));
     const folders = buildFolderNodes(fileNodes);
     return { nodes: [...graph.nodes, ...folders.nodes], links: [...graph.links, ...folders.links] };
-  }, [graph, showFolders]);
+  }, [graph, foldersShown]);
 
   const fullIndex = useMemo(() => buildGraphIndex(withFolders), [withFolders]);
   const nodesById = useMemo(() => new Map(withFolders.nodes.map((n) => [n.id, n])), [withFolders]);
@@ -366,9 +370,24 @@ function App() {
     return highlightIds ? { ids: highlightIds } : null;
   }, [impact, highlightIds]);
 
-  const displayedIndex = useMemo(() => buildGraphIndex(displayed), [displayed]);
+  // Structure view: only hierarchy links (a tree, so it draws without crossings), plus the
+  // dependencies of the selected node so you can still see what it uses and who uses it.
+  const shownGraph = useMemo(() => {
+    if (layout !== 'structure') return displayed;
+    const links = structureLinks(displayed.nodes);
+    if (selectedId) {
+      const shown = new Set(displayed.nodes.map((n) => n.id));
+      for (const edge of [...(fullIndex.out.get(selectedId) ?? []), ...(fullIndex.in.get(selectedId) ?? [])]) {
+        if (edge.type === 'contains' || !shown.has(edge.id)) continue;
+        const outgoing = (fullIndex.out.get(selectedId) ?? []).includes(edge);
+        links.push({ source: outgoing ? selectedId : edge.id, target: outgoing ? edge.id : selectedId, type: edge.type });
+      }
+    }
+    return { nodes: displayed.nodes, links };
+  }, [layout, displayed, selectedId, fullIndex]);
+  const displayedIndex = useMemo(() => buildGraphIndex(shownGraph), [shownGraph]);
   // What the renderer gets: links never point at node objects that are no longer in the graph.
-  const renderGraph = useMemo(() => rebindLinks(displayed), [displayed]);
+  const renderGraph = useMemo(() => rebindLinks(shownGraph), [shownGraph]);
 
   const fitRequest = useMemo<FitRequest>(
     () => ({
@@ -753,7 +772,7 @@ function App() {
           setShowOverview(true);
           break;
         case 'l':
-          setLayout((m) => (m === 'force' ? 'tree' : m === 'tree' ? 'radial' : 'force'));
+          setLayout((m) => (m === 'force' ? 'tree' : m === 'tree' ? 'radial' : m === 'radial' ? 'structure' : 'force'));
           break;
         case 'Escape':
           if (lassoMode) setLassoMode(false);
@@ -862,6 +881,8 @@ function App() {
     { id: 'layout-force', label: 'Layout: force', keywords: 'physics', run: () => setLayout('force') },
     { id: 'layout-tree', label: 'Layout: tree', keywords: 'hierarchy dag', shortcut: 'L', run: () => setLayout('tree') },
     { id: 'layout-radial', label: 'Layout: radial', keywords: 'rings', run: () => setLayout('radial') },
+    { id: 'layout-structure', label: 'Layout: structure (no crossing lines)', keywords: 'hierarchy folders planar', run: () => setLayout('structure') },
+    { id: 'untangle', label: untangleOn ? 'Stop untangling lines after layout' : 'Untangle crossing lines after layout', keywords: 'crossings', run: () => setUntangleOn((v) => !v) },
     { id: 'groups', label: groupByFolder ? 'Hide folder groups' : 'Outline folder groups', keywords: 'hull cluster', run: () => setGroupByFolder((g) => !g) },
     { id: 'collapse-all', label: 'Collapse all top-level folders', run: () => setCollapsedFolders(new Set(folders.map((f) => f.key))) },
     { id: 'expand-all', label: 'Expand all folders', run: () => setCollapsedFolders(new Set()) },
@@ -999,6 +1020,7 @@ function App() {
           }}
           onBackgroundClick={() => selectNode(null)}
           onNodePinned={onNodePinned}
+          untangle={untangleOn}
         />
 
         <div className="topbar">
@@ -1038,6 +1060,8 @@ function App() {
               <ViewMenu
                 layout={layout}
                 onLayoutChange={setLayout}
+                untangle={untangleOn}
+                onToggleUntangle={() => setUntangleOn((v) => !v)}
                 groupByFolder={groupByFolder}
                 onToggleGroups={() => setGroupByFolder((g) => !g)}
                 folders={folders}

@@ -14,6 +14,7 @@ type DebugWindow = {
     data: { nodes: GNode[]; links: GLink[] };
     screenOf(id: string): { x: number; y: number } | null;
     zoom(): number;
+    untangling: boolean;
   };
 };
 type L = { source: string; target: string; type: string };
@@ -72,7 +73,8 @@ const settle = (page: Page) =>
     const ns = (window as unknown as DebugWindow).__coditeGraph.data.nodes;
     let e = 0;
     for (const n of ns) e += (n.vx ?? 0) ** 2 + (n.vy ?? 0) ** 2;
-    return ns.length > 0 && e / ns.length < 0.01;
+    // Untangling moves nodes with zero velocity, so wait for it to finish too.
+    return ns.length > 0 && e / ns.length < 0.01 && !(window as unknown as DebugWindow).__coditeGraph.untangling;
   }, undefined, { timeout: 20_000 });
 
 const nodeState = (page: Page, id: string) =>
@@ -185,8 +187,8 @@ test.describe('graph stability', () => {
     await page.waitForTimeout(300);
     const pinned = (await nodeState(page, id))!;
     expect(pinned.fx).toBeDefined();
-    for (let i = 0; i < 3; i++) {
-      await page.locator('body').press('l'); // tree, radial, force
+    for (let i = 0; i < 4; i++) {
+      await page.locator('body').press('l'); // tree, radial, structure, force
       await page.waitForTimeout(600);
     }
     const after = (await nodeState(page, id))!;

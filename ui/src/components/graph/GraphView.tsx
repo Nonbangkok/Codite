@@ -17,14 +17,16 @@ import {
 import { linkKey, neighborhood, parallelLinkCurvature, type GraphIndex, type PathResult } from '../../utils/graphIndex';
 import { KIND_LABEL, languageLabel, nodeKind } from '../../utils/nodeKinds';
 import { canvasToPng } from '../../utils/exportGraph';
-import { fixPositions, treeLayout } from '../../utils/treeLayout';
+import { fixPositions, moveNodes, treeLayout } from '../../utils/treeLayout';
+import { structureLayout } from '../../utils/structureLayout';
+import { untangle } from '../../utils/untangle';
 import { emphasize, PALETTES, rgba, type RGB, type ThemeName } from '../../theme';
 import { useGraphCamera, type CameraTarget } from '../../hooks/useGraphCamera';
 import { useElementSize } from '../../hooks/useElementSize';
 import { Minimap, type MinimapHandle } from './Minimap';
 
 export type ColorMode = 'kind' | 'language' | 'heat';
-export type LayoutMode = 'force' | 'tree' | 'radial';
+export type LayoutMode = 'force' | 'tree' | 'radial' | 'structure';
 
 /** Above this many nodes the layout trades polish for frame rate. */
 const LARGE_GRAPH = 1500;
@@ -75,6 +77,8 @@ interface GraphViewProps {
   onNodeClick: (node: NodeData, event: MouseEvent) => void;
   onBackgroundClick: () => void;
   onNodePinned: (node: NodeData) => void;
+  /** After the force layout settles, move nodes to remove edge crossings. */
+  untangle: boolean;
 }
 
 type ForceGraphRef = ForceGraphMethods<NodeObject<NodeData>, LinkObject<NodeData, LinkData>>;
@@ -185,18 +189,20 @@ export const GraphView = forwardRef<GraphHandle, GraphViewProps>((props, ref) =>
       'radial',
       ringOf ? d3.forceRadial<SimNode>((n) => ringOf(n.id) * Math.max(70, 40 + sqrtCount * 4), 0, 0).strength(0.9) : null,
     );
+    untangleToken.current++;
     // Re-add last so it runs after every other force in the tick.
     fg.d3Force('speedLimit', null);
     fg.d3Force('speedLimit', createSpeedLimitForce() as unknown as Parameters<typeof fg.d3Force>[1]);
     fg.d3ReheatSimulation?.();
   }, [data, isLarge, layout, ringOf, sizeOf, groups]);
 
-  // Tree layout: fixed, overlap-free positions computed for the visible graph. Leaving the tree
-  // releases them (the app then restores the user's own pins).
+  // Tree and Structure layouts: fixed positions computed for the visible graph. Leaving them
+  // releases those positions (the app then restores the user's own pins).
   const wasTree = useRef(false);
   useEffect(() => {
-    if (layout === 'tree') {
-      fixPositions(data.nodes, treeLayout(data.nodes, data.links));
+    untangleToken.current++;
+    if (layout === 'tree' || layout === 'structure') {
+      fixPositions(data.nodes, layout === 'tree' ? treeLayout(data.nodes, data.links) : structureLayout(data.nodes));
       wasTree.current = true;
       fgRef.current?.d3ReheatSimulation?.();
     } else if (wasTree.current) {
@@ -241,12 +247,91 @@ export const GraphView = forwardRef<GraphHandle, GraphViewProps>((props, ref) =>
     return () => el.removeEventListener('wheel', cancelPendingFit, { capture: true });
   }, [cancelPendingFit]);
 
+  // ── Untangle: once the physics settles, a worker searches for node moves that remove edge
+  // crossings; the result glides in. Any new layout, data change or drag cancels it.
+  const untangleToken = useRef(0);
+  const workerRef = useRef<Worker | null>(null);
+  const [animating, setAnimating] = useState(false);
+  const lastUntangle = useRef<{ before: number; after: number } | null>(null);
+  /** Token of the untangle being computed or glided to (-1 when none), for the debug hook. */
+  const busyToken = useRef(-1);
+  useEffect(() => {
+    if (typeof Worker === 'undefined') return;
+    try {
+      workerRef.current = new Worker(new URL('../../workers/untangle.worker.ts', import.meta.url), { type: 'module' });
+    } catch {
+      workerRef.current = null;
+    }
+    return () => workerRef.current?.terminate();
+  }, []);
+
+  const glideTo = useCallback((nodes: NodeData[], targets: { x: number; y: number }[], token: number) => {
+    const from = nodes.map((n) => ({ x: n.x ?? 0, y: n.y ?? 0 }));
+    const started = performance.now();
+    const duration = 450;
+    setAnimating(true);
+    const step = () => {
+      if (token !== untangleToken.current) return setAnimating(false);
+      const t = Math.min(1, (performance.now() - started) / duration);
+      const ease = t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2;
+      moveNodes(nodes, from, targets, ease);
+      if (t < 1) requestAnimationFrame(step);
+      else {
+        setAnimating(false);
+        busyToken.current = -1;
+      }
+    };
+    requestAnimationFrame(step);
+  }, []);
+
+  const runUntangle = useCallback(() => {
+    if (!props.untangle || (layout !== 'force' && layout !== 'radial')) return;
+    const nodes = data.nodes;
+    if (nodes.length < 4 || nodes.length > 6000) return;
+    const idx = new Map(nodes.map((n, i) => [n.id, i]));
+    const edges: [number, number][] = [];
+    for (const l of data.links) {
+      const a = idx.get(typeof l.source === 'object' ? l.source.id : l.source);
+      const b = idx.get(typeof l.target === 'object' ? l.target.id : l.target);
+      if (a !== undefined && b !== undefined && a !== b) edges.push([a, b]);
+    }
+    const input = {
+      pos: nodes.map((n) => ({ x: n.x ?? 0, y: n.y ?? 0 })),
+      fixed: nodes.map((n) => n.fx != null || n.fy != null),
+      edges,
+      // Same spacing as the collide force, so untangled nodes don't overlap or steal each other's clicks.
+      radius: nodes.map((n) => getCollisionRadius({ ...n, val: sizeOf(n) })),
+      budgetMs: nodes.length > 1500 ? 900 : 500,
+    };
+    const token = ++untangleToken.current;
+    busyToken.current = token;
+    const done = (result: { pos: { x: number; y: number }[]; before: number; after: number }) => {
+      if (token !== untangleToken.current) return;
+      lastUntangle.current = { before: result.before, after: result.after };
+      if (result.after < result.before) glideTo(nodes, result.pos, token);
+      else busyToken.current = -1;
+    };
+    const worker = workerRef.current;
+    if (worker) {
+      worker.onmessage = (e: MessageEvent<{ token: number; pos: { x: number; y: number }[]; before: number; after: number }>) => {
+        if (e.data.token === token) done(e.data);
+      };
+      worker.postMessage({ ...input, token });
+    } else {
+      done(untangle({ ...input, budgetMs: 150 }));
+    }
+  }, [props.untangle, layout, data, sizeOf, glideTo]);
+
   const handleEngineStop = useCallback(() => {
+    // The engine stops at a small but non-zero alpha; drop the leftover velocities so the next
+    // reheat starts from rest.
+    for (const n of data.nodes) n.vx = n.vy = 0;
     if (pendingFit.current) {
       fitTo(pendingFit.current.ids, 400);
       pendingFit.current = null;
     }
-  }, [fitTo]);
+    runUntangle();
+  }, [data, fitTo, runUntangle]);
 
   // Bring a newly selected node into view.
   useEffect(() => {
@@ -553,6 +638,12 @@ export const GraphView = forwardRef<GraphHandle, GraphViewProps>((props, ref) =>
       },
       zoom: () => fgRef.current?.zoom(),
       fg: fgRef.current,
+      get untangle() {
+        return lastUntangle.current;
+      },
+      get untangling() {
+        return busyToken.current !== -1 && busyToken.current === untangleToken.current;
+      },
     };
   });
 
@@ -590,6 +681,10 @@ export const GraphView = forwardRef<GraphHandle, GraphViewProps>((props, ref) =>
           nodeLabel={() => ''}
           onNodeHover={(node) => handleNodeHover((node as NodeData) ?? null)}
           onNodeClick={(node, event) => props.onNodeClick(node as NodeData, event)}
+          autoPauseRedraw={!animating}
+          onNodeDrag={() => {
+            untangleToken.current++;
+          }}
           onNodeDragEnd={(node) => {
             node.fx = node.x;
             node.fy = node.y;
@@ -612,6 +707,9 @@ export const GraphView = forwardRef<GraphHandle, GraphViewProps>((props, ref) =>
           linkDirectionalArrowRelPos={0.92}
           linkCurvature={curvature.size || layout === 'tree' ? linkCurvature : 0}
           d3AlphaDecay={isLarge ? 0.045 : 0.028}
+          // Without a minimum alpha the engine only stops when cooldownTime runs out (15 s), which
+          // delayed the final fit and the untangle step long after the layout had settled.
+          d3AlphaMin={0.005}
           cooldownTime={isLarge ? 8000 : 15000}
         />
       )}
