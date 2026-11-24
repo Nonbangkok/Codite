@@ -18,6 +18,8 @@ const LINK_LABEL: Record<string, string> = {
 interface ViewMenuProps {
   layout: LayoutMode;
   onLayoutChange: (layout: LayoutMode) => void;
+  untangle: boolean;
+  onToggleUntangle: () => void;
   groupByFolder: boolean;
   onToggleGroups: () => void;
   folders: FolderGroup[];
@@ -79,15 +81,28 @@ export const ViewMenu = (props: ViewMenuProps) => {
           <fieldset>
             <legend>Layout</legend>
             <div className="segmented" role="group" aria-label="Layout">
-              {(['force', 'tree', 'radial'] as const).map((l) => (
+              {(['force', 'tree', 'radial', 'structure'] as const).map((l) => (
                 <button key={l} type="button" aria-pressed={props.layout === l} onClick={() => props.onLayoutChange(l)}>
-                  {l === 'force' ? 'Force' : l === 'tree' ? 'Tree' : 'Radial'}
+                  {{ force: 'Force', tree: 'Tree', radial: 'Radial', structure: 'Structure' }[l]}
                 </button>
               ))}
             </div>
             <p className="view-menu__hint">
-              {props.layout === 'radial' ? 'Rings show distance from the selected node (or folder depth).' : props.layout === 'tree' ? 'Top-down by dependency level.' : 'Physics layout.'}
+              {
+                {
+                  force: 'Physics layout.',
+                  tree: 'Files by dependency level, symbols under their file, ordered for fewest crossings.',
+                  radial: 'Rings show distance from the selected node (or folder depth).',
+                  structure: 'Folders, files and symbols only: no crossing lines. Select a node to see its dependencies.',
+                }[props.layout]
+              }
             </p>
+            {(props.layout === 'force' || props.layout === 'radial') && (
+              <label className="check">
+                <input type="checkbox" checked={props.untangle} onChange={props.onToggleUntangle} />
+                Untangle crossing lines after layout
+              </label>
+            )}
           </fieldset>
 
           <fieldset>
